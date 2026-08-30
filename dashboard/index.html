@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A股周级价值投资 · 系统工作台</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root { --bg:#0f1419; --card:#1a2129; --line:#2a3340; --fg:#dbe4ee; --dim:#8b98a5; --acc:#4da3ff; --ok:#3ddc84; --bad:#ff6b6b; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--fg); font-family:"Segoe UI","Microsoft YaHei",sans-serif; padding:20px; }
+  h1 { font-size:20px; margin-bottom:4px; }
+  .sub { color:var(--dim); font-size:12px; margin-bottom:16px; }
+  .tabs { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  .tab { padding:8px 16px; border:1px solid var(--line); border-radius:8px; cursor:pointer; color:var(--dim); font-size:13px; }
+  .tab.active { background:var(--acc); color:#fff; border-color:var(--acc); }
+  .panel { display:none; }
+  .panel.active { display:block; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-bottom:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; }
+  .card .k { font-size:12px; color:var(--dim); }
+  .card .v { font-size:22px; font-weight:600; margin-top:4px; }
+  .card .d { font-size:11px; color:var(--dim); margin-top:2px; }
+  .pos { color:var(--ok); } .neg { color:var(--bad); }
+  table { width:100%; border-collapse:collapse; font-size:12px; background:var(--card); border-radius:10px; overflow:hidden; }
+  th,td { padding:7px 10px; text-align:left; border-bottom:1px solid var(--line); }
+  th { color:var(--dim); font-weight:500; background:#141b23; }
+  .log { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; font-size:13px; line-height:1.7; white-space:pre-wrap; }
+  input { background:#141b23; border:1px solid var(--line); color:var(--fg); border-radius:6px; padding:6px 10px; margin-bottom:10px; width:260px; }
+  #chartBox { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; }
+</style>
+</head>
+<body>
+<h1>📈 A股周级价值投资 · 系统工作台</h1>
+<div class="sub">v16-R 生产基线 · 观察期 · 数据生成于本地（dashboard/data）· 仅展示，不做任何交易决策</div>
+
+<div class="tabs">
+  <div class="tab active" data-p="overview">概览</div>
+  <div class="tab" data-p="equity">净值曲线</div>
+  <div class="tab" data-p="trades">交易台账</div>
+  <div class="tab" data-p="decisions">周度决策</div>
+  <div class="tab" data-p="observe">观察日志</div>
+</div>
+
+<div class="panel active" id="p-overview">
+  <div class="cards" id="metricCards"></div>
+  <table id="eraTable"><thead><tr><th>时代</th><th>窗口</th><th>收益</th><th>Sharpe</th><th>最大回撤</th><th>成本</th><th>closed</th></tr></thead><tbody></tbody></table>
+</div>
+
+<div class="panel" id="p-equity">
+  <div id="chartBox"><canvas id="eqChart" height="120"></canvas></div>
+  <div class="sub" style="margin-top:8px">超长窗口净值（v15-era / v16-era / v16-R 对比，抽稀显示）</div>
+</div>
+
+<div class="panel" id="p-trades">
+  <input id="tradeSearch" placeholder="搜索代码 / 原因…">
+  <table><thead><tr><th>日期</th><th>代码</th><th>方向</th><th>数量</th><th>价格</th><th>金额</th><th>原因</th></tr></thead><tbody id="tradeBody"></tbody></table>
+</div>
+
+<div class="panel" id="p-decisions">
+  <table><thead><tr><th>决策周</th><th>代码</th><th>目标权重</th><th>市场模式</th><th>买入比例</th></tr></thead><tbody id="decBody"></tbody></table>
+</div>
+
+<div class="panel" id="p-observe"><div id="observeLog"></div></div>
+
+<script>
+let M, EQ, TR, DEC, OBS;
+async function load() {
+  const j = p => fetch(`data/${p}.json`).then(r => r.json());
+  [M, EQ, TR, DEC, OBS] = await Promise.all(["metrics","equity_curves","trades","decisions","observation"].map(j));
+  renderOverview(); renderEquity(); renderTrades(TR); renderDecisions(); renderObserve();
+}
+function fmt(x, s="") { return s + (x>=0?"":"") + x.toFixed(2) + "%"; }
+function cls(x) { return x>=0?"pos":"neg"; }
+function renderOverview() {
+  const cards = document.getElementById("metricCards");
+  const cur = M.filter(m => m.era === "v16-R");
+  const items = [
+    ["短周期收益", fmt(cur.find(m=>m.window==="short")?.return ?? 0), "2023-2026"],
+    ["超长收益", fmt(cur.find(m=>m.window==="long")?.return ?? 0), "2011-2026"],
+    ["超长 Sharpe", (cur.find(m=>m.window==="long")?.sharpe ?? 0).toFixed(3), ""],
+    ["超长回撤", fmt(cur.find(m=>m.window==="long")?.drawdown ?? 0), ""],
+  ];
+  cards.innerHTML = items.map(([k,v,d]) => `<div class="card"><div class="k">${k}</div><div class="v ${cls(parseFloat(v))}">${v}</div><div class="d">${d}</div></div>`).join("");
+  const tb = document.querySelector("#eraTable tbody");
+  tb.innerHTML = M.map(m => `<tr><td>${m.era}</td><td>${m.window}</td><td class="${cls(m.return)}">${m.return.toFixed(2)}%</td><td>${m.sharpe}</td><td class="${cls(m.drawdown)}">${m.drawdown.toFixed(2)}%</td><td>${m.cost.toLocaleString()}</td><td>${m.closed}</td></tr>`).join("");
+}
+function renderEquity() {
+  const labels = EQ["v16-R_long"].map(p => p.d);
+  const ds = Object.entries(EQ).map(([k, arr]) => ({ label: k.replace("_long",""), data: arr.map(p=>p.e), borderWidth: k.startsWith("v16-R")?2.5:1.5, borderColor: k.startsWith("v16-R")?"#3ddc84":(k.startsWith("v16-era")?"#4da3ff":"#8b98a5"), pointRadius: 0, tension: 0.2 }));
+  new Chart(document.getElementById("eqChart"), { type:"line", data:{ labels, datasets: ds }, options:{ scales:{ x:{ ticks:{ maxTicksLimit:12, color:"#8b98a5" } }, y:{ ticks:{ color:"#8b98a5" } } }, plugins:{ legend:{ labels:{ color:"#dbe4ee" } } }, maintainAspectRatio:false } });
+}
+function renderTrades(list) {
+  const body = document.getElementById("tradeBody");
+  const draw = l => body.innerHTML = l.map(t => `<tr><td>${t.date}</td><td>${t.symbol}</td><td class="${t.action==="BUY"?"pos":"neg"}">${t.action}</td><td>${t.qty}</td><td>${t.price}</td><td>${t.value.toLocaleString()}</td><td>${t.reason}</td></tr>`).join("");
+  draw(list);
+  document.getElementById("tradeSearch").oninput = e => {
+    const q = e.target.value.trim().toLowerCase();
+    draw(q ? list.filter(t => t.symbol.includes(q) || (t.reason||"").toLowerCase().includes(q)) : list);
+  };
+}
+function renderDecisions() {
+  document.getElementById("decBody").innerHTML = DEC.map(r => `<tr><td>${r.week}</td><td>${r.symbol}</td><td>${(r.weight*100).toFixed(1)}%</td><td>${r.mode}</td><td>${r.ratio}</td></tr>`).join("");
+}
+function renderObserve() {
+  const box = document.getElementById("observeLog");
+  box.innerHTML = OBS.length ? OBS.map(o => `<div class="log">## ${o.file}\n${o.text}</div>`).join("<br>") : "<div class='log'>暂无观察日志</div>";
+}
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+  document.querySelectorAll(".panel").forEach(x => x.classList.remove("active"));
+  t.classList.add("active"); document.getElementById("p-"+t.dataset.p).classList.add("active");
+});
+load();
+</script>
+</body>
+</html>
