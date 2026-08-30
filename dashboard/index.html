@@ -3,114 +3,182 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>A股周级价值投资 · 系统工作台</title>
+<title>2026 试运行 · A股周级价值投资 · 系统工作台</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
-  :root { --bg:#0f1419; --card:#1a2129; --line:#2a3340; --fg:#dbe4ee; --dim:#8b98a5; --acc:#4da3ff; --ok:#3ddc84; --bad:#ff6b6b; }
+  :root { --bg:#0f1419; --card:#1a2129; --line:#2a3340; --fg:#dbe4ee; --dim:#8b98a5; --acc:#4da3ff; --ok:#3ddc84; --bad:#ff6b6b; --warn:#ffb454; }
   * { box-sizing:border-box; margin:0; padding:0; }
-  body { background:var(--bg); color:var(--fg); font-family:"Segoe UI","Microsoft YaHei",sans-serif; padding:20px; }
-  h1 { font-size:20px; margin-bottom:4px; }
-  .sub { color:var(--dim); font-size:12px; margin-bottom:16px; }
-  .tabs { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
-  .tab { padding:8px 16px; border:1px solid var(--line); border-radius:8px; cursor:pointer; color:var(--dim); font-size:13px; }
-  .tab.active { background:var(--acc); color:#fff; border-color:var(--acc); }
-  .panel { display:none; }
-  .panel.active { display:block; }
-  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-bottom:16px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; }
-  .card .k { font-size:12px; color:var(--dim); }
-  .card .v { font-size:22px; font-weight:600; margin-top:4px; }
-  .card .d { font-size:11px; color:var(--dim); margin-top:2px; }
-  .pos { color:var(--ok); } .neg { color:var(--bad); }
-  table { width:100%; border-collapse:collapse; font-size:12px; background:var(--card); border-radius:10px; overflow:hidden; }
-  th,td { padding:7px 10px; text-align:left; border-bottom:1px solid var(--line); }
-  th { color:var(--dim); font-weight:500; background:#141b23; }
-  .log { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; font-size:13px; line-height:1.7; white-space:pre-wrap; }
-  input { background:#141b23; border:1px solid var(--line); color:var(--fg); border-radius:6px; padding:6px 10px; margin-bottom:10px; width:260px; }
-  #chartBox { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; }
+  body { background:var(--bg); color:var(--fg); font-family:"Segoe UI","Microsoft YaHei",sans-serif; padding:20px; max-width:1400px; margin:0 auto; }
+  h1 { font-size:24px; margin-bottom:2px; }
+  .sub { color:var(--dim); font-size:12px; margin-bottom:8px; }
+  .badge { display:inline-block; padding:2px 10px; border-radius:10px; font-size:12px; background:var(--acc); color:#fff; margin-left:8px; vertical-align:middle; }
+  h2 { font-size:16px; margin:26px 0 10px; padding-top:14px; border-top:1px solid var(--line); color:var(--fg); }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin-bottom:8px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; }
+  .card .k { font-size:11px; color:var(--dim); margin-bottom:4px; }
+  .card .v { font-size:20px; font-weight:600; }
+  .card .d { font-size:11px; color:var(--dim); margin-top:4px; }
+  .pos { color:var(--ok); } .neg { color:var(--bad); } .warn { color:var(--warn); }
+  table { width:100%; border-collapse:collapse; font-size:12px; background:var(--card); border-radius:10px; overflow:hidden; margin-bottom:8px; }
+  th, td { padding:7px 10px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { background:#202a35; color:var(--dim); font-weight:600; position:sticky; top:0; }
+  tr:hover td { background:#1e2833; }
+  .box { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:8px; }
+  .chartbox { position:relative; height:260px; }
+  details { background:var(--card); border:1px solid var(--line); border-radius:10px; margin-bottom:6px; padding:10px 14px; }
+  summary { cursor:pointer; font-size:13px; color:var(--fg); }
+  summary:hover { color:var(--acc); }
+  .mini { font-size:11px; color:var(--dim); margin-left:8px; }
+  .tag { display:inline-block; font-size:11px; padding:1px 8px; border-radius:8px; margin-right:4px; }
+  .tag.buy { background:#123a2a; color:var(--ok); } .tag.sell { background:#3a1820; color:var(--bad); }
+  .tag.crash { background:#3a2f12; color:var(--warn); }
+  .log { white-space:pre-wrap; font-size:12px; color:var(--fg); }
+  button { background:var(--card); color:var(--acc); border:1px solid var(--line); border-radius:8px; padding:6px 14px; font-size:12px; cursor:pointer; margin:6px 0; }
+  button:hover { border-color:var(--acc); }
+  .modeB1 { color:var(--acc); } .modeB2 { color:var(--dim); } .modeB3 { color:var(--bad); }
+  .dimm { color:var(--dim); font-size:11px; }
+  input { background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-size:12px; margin-bottom:8px; width:280px; }
+  hr { border-color:var(--line); margin:10px 0; }
 </style>
 </head>
 <body>
-<h1>📈 A股周级价值投资 · 系统工作台</h1>
-<div class="sub">v16-R 生产基线 · 观察期 · 数据生成于本地（dashboard/data）· 仅展示，不做任何交易决策</div>
+<h1>2026 试运行<span class="badge">试运行年 · 第 1 年</span></h1>
+<div class="sub" id="pilotSub">加载中…</div>
 
-<div class="tabs">
-  <div class="tab active" data-p="overview">概览</div>
-  <div class="tab" data-p="equity">净值曲线</div>
-  <div class="tab" data-p="trades">交易台账</div>
-  <div class="tab" data-p="decisions">周度决策</div>
-  <div class="tab" data-p="observe">观察日志</div>
+<h2>总览</h2>
+<div class="cards" id="metricCards"></div>
+
+<h2>净值与回撤</h2>
+<div class="box"><div class="chartbox"><canvas id="eqChart"></canvas></div></div>
+
+<h2>六指数温度与大盘每日得分</h2>
+<div class="box">
+  <div class="sub">加权温度 0–100（冷 ≤ 阈值 / 热 ≥ 阈值），温度即当日大盘得分；crashing = m20/m60 击穿崩盘阈值</div>
+  <div class="chartbox"><canvas id="tempChart"></canvas></div>
+</div>
+<div id="tempCompLegend" class="sub" style="margin:6px 0"></div>
+
+<h2>周决策</h2>
+<div id="weeklyList"></div>
+
+<h2>日决策</h2>
+<div class="box">
+  <div class="sub">每日：六指数温度 / 大盘得分 / 模式 / m20 / m60 / 崩盘标志 / 当日执行的买卖动作（含原因）</div>
+  <input id="dailySearch" placeholder="筛选日期 / 代码 / 原因…">
+  <div style="max-height:460px; overflow:auto"><table><thead><tr><th>日期</th><th>温度</th><th>大盘得分</th><th>模式</th><th>m20</th><th>m60</th><th>崩盘</th><th>当日动作</th></tr></thead><tbody id="dailyBody"></tbody></table></div>
+  <button id="dailyMore">显示全部</button>
 </div>
 
-<div class="panel active" id="p-overview">
-  <div class="cards" id="metricCards"></div>
-  <table id="eraTable"><thead><tr><th>时代</th><th>窗口</th><th>收益</th><th>Sharpe</th><th>最大回撤</th><th>成本</th><th>closed</th></tr></thead><tbody></tbody></table>
+<h2>每周持仓 · 四维度评价</h2>
+<div class="box">
+  <div class="sub">技术 / 预期 / 资金 / 价值：绝对分 + 行业内分位（ind），combo = 预期/资金组合命中</div>
+  <div style="max-height:480px; overflow:auto"><table><thead><tr><th>周</th><th>代码</th><th>行业</th><th>技术(绝对/ind)</th><th>预期(绝对/ind)</th><th>资金(绝对/ind)</th><th>价值(绝对/ind)</th><th>combo</th></tr></thead><tbody id="fourBody"></tbody></table></div>
 </div>
 
-<div class="panel" id="p-equity">
-  <div id="chartBox"><canvas id="eqChart" height="120"></canvas></div>
-  <div class="sub" style="margin-top:8px">超长窗口净值（v15-era / v16-era / v16-R 对比，抽稀显示）</div>
-</div>
-
-<div class="panel" id="p-trades">
-  <input id="tradeSearch" placeholder="搜索代码 / 原因…">
-  <table><thead><tr><th>日期</th><th>代码</th><th>方向</th><th>数量</th><th>价格</th><th>金额</th><th>原因</th></tr></thead><tbody id="tradeBody"></tbody></table>
-</div>
-
-<div class="panel" id="p-decisions">
-  <table><thead><tr><th>决策周</th><th>代码</th><th>目标权重</th><th>市场模式</th><th>买入比例</th></tr></thead><tbody id="decBody"></tbody></table>
-</div>
-
-<div class="panel" id="p-observe"><div id="observeLog"></div></div>
+<h2>观察日志</h2>
+<div class="box" id="observeLog"></div>
 
 <script>
-let M, EQ, TR, DEC, OBS;
+let PM, PE, PD, PW, PF, OBS;
+const f2 = x => x == null ? "-" : Number(x).toFixed(2);
+const cls = x => x > 0 ? "pos" : (x < 0 ? "neg" : "");
+const pct = (x, s=2) => x == null ? "-" : Number(x).toFixed(s) + "%";
 async function load() {
   const j = p => fetch(`data/${p}.json`).then(r => r.json());
-  [M, EQ, TR, DEC, OBS] = await Promise.all(["metrics","equity_curves","trades","decisions","observation"].map(j));
-  renderOverview(); renderEquity(); renderTrades(TR); renderDecisions(); renderObserve();
+  [PM, PE, PD, PW, PF, OBS] = await Promise.all(["pilot_metrics","pilot_equity","pilot_daily","pilot_weekly","pilot_four_dim","observation"].map(j));
+  document.getElementById("pilotSub").textContent =
+    `A股周级价值投资 · 试运行起始 ${PM.start_date}（初始资金 ¥${PM.initial_cash.toLocaleString()}）· 截至 ${PM.end_date} · 共 ${PM.decision_weeks} 个决策周 / ${PM.trading_days} 个交易日 · 仅展示，不做任何交易决策`;
+  renderMetrics(); renderEquity(); renderTemp(); renderWeekly(); renderDaily(); renderFourDim(); renderObserve();
 }
-function fmt(x, s="") { return s + (x>=0?"":"") + x.toFixed(2) + "%"; }
-function cls(x) { return x>=0?"pos":"neg"; }
-function renderOverview() {
-  const cards = document.getElementById("metricCards");
-  const cur = M.filter(m => m.era === "v16-R");
+function renderMetrics() {
   const items = [
-    ["短周期收益", fmt(cur.find(m=>m.window==="short")?.return ?? 0), "2023-2026"],
-    ["超长收益", fmt(cur.find(m=>m.window==="long")?.return ?? 0), "2011-2026"],
-    ["超长 Sharpe", (cur.find(m=>m.window==="long")?.sharpe ?? 0).toFixed(3), ""],
-    ["超长回撤", fmt(cur.find(m=>m.window==="long")?.drawdown ?? 0), ""],
+    ["当前净值", "¥" + PM.final_equity.toLocaleString(), "截至 " + PM.end_date],
+    ["总收益率", pct(PM.total_return), "2026-01-01 起"],
+    ["年化收益", pct(PM.annualized_return), ""],
+    ["最大回撤", pct(PM.max_drawdown), ""],
+    ["Sharpe", Number(PM.sharpe ?? 0).toFixed(3), ""],
+    ["基准收益", pct(PM.benchmark_return), "超额 " + pct(PM.excess_return)],
+    ["持仓数", PM.final_positions, "平均持仓"],
+    ["累计交易成本", "¥" + PM.total_cost.toLocaleString(), PM.closed_trades + " 笔已平仓"],
   ];
-  cards.innerHTML = items.map(([k,v,d]) => `<div class="card"><div class="k">${k}</div><div class="v ${cls(parseFloat(v))}">${v}</div><div class="d">${d}</div></div>`).join("");
-  const tb = document.querySelector("#eraTable tbody");
-  tb.innerHTML = M.map(m => `<tr><td>${m.era}</td><td>${m.window}</td><td class="${cls(m.return)}">${m.return.toFixed(2)}%</td><td>${m.sharpe}</td><td class="${cls(m.drawdown)}">${m.drawdown.toFixed(2)}%</td><td>${m.cost.toLocaleString()}</td><td>${m.closed}</td></tr>`).join("");
+  document.getElementById("metricCards").innerHTML = items.map(([k,v,d]) =>
+    `<div class="card"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join("");
 }
 function renderEquity() {
-  const labels = EQ["v16-R_long"].map(p => p.d);
-  const ds = Object.entries(EQ).map(([k, arr]) => ({ label: k.replace("_long",""), data: arr.map(p=>p.e), borderWidth: k.startsWith("v16-R")?2.5:1.5, borderColor: k.startsWith("v16-R")?"#3ddc84":(k.startsWith("v16-era")?"#4da3ff":"#8b98a5"), pointRadius: 0, tension: 0.2 }));
-  new Chart(document.getElementById("eqChart"), { type:"line", data:{ labels, datasets: ds }, options:{ scales:{ x:{ ticks:{ maxTicksLimit:12, color:"#8b98a5" } }, y:{ ticks:{ color:"#8b98a5" } } }, plugins:{ legend:{ labels:{ color:"#dbe4ee" } } }, maintainAspectRatio:false } });
+  new Chart(document.getElementById("eqChart"), {
+    type: "line",
+    data: {
+      labels: PE.map(p => p.date),
+      datasets: [
+        { label: "净值 (¥)", data: PE.map(p => p.equity), borderColor: "#4da3ff", yAxisID: "y", pointRadius: 0, tension: 0.2, borderWidth: 2 },
+        { label: "回撤 (%)", data: PE.map(p => p.drawdown), borderColor: "#ff6b6b", yAxisID: "y1", pointRadius: 0, tension: 0.2, borderWidth: 1.5 },
+      ],
+    },
+    options: {
+      scales: { x: { ticks: { maxTicksLimit: 12, color: "#8b98a5" } }, y: { ticks: { color: "#8b98a5" } }, y1: { position: "right", grid: { drawOnChartArea: false }, ticks: { color: "#8b98a5" } } },
+      plugins: { legend: { labels: { color: "#dbe4ee" } } }, maintainAspectRatio: false,
+    },
+  });
 }
-function renderTrades(list) {
-  const body = document.getElementById("tradeBody");
-  const draw = l => body.innerHTML = l.map(t => `<tr><td>${t.date}</td><td>${t.symbol}</td><td class="${t.action==="BUY"?"pos":"neg"}">${t.action}</td><td>${t.qty}</td><td>${t.price}</td><td>${t.value.toLocaleString()}</td><td>${t.reason}</td></tr>`).join("");
-  draw(list);
-  document.getElementById("tradeSearch").oninput = e => {
-    const q = e.target.value.trim().toLowerCase();
-    draw(q ? list.filter(t => t.symbol.includes(q) || (t.reason||"").toLowerCase().includes(q)) : list);
+function renderTemp() {
+  const labels = PD.map(d => d.date);
+  const compKeys = Object.keys((PD.find(d => d.components) || {}).components || {});
+  const compColors = ["#4da3ff","#b48cff","#ffb454","#ff8fd8","#5fe3c8","#a8c8ff"];
+  const ds = [
+    { label: "大盘温度/得分", data: PD.map(d => d.temperature), borderColor: "#3ddc84", pointRadius: 0, tension: 0.2, borderWidth: 2.5 },
+    ...compKeys.map((k, i) => ({ label: k, data: PD.map(d => (d.components || {})[k] ?? null), borderColor: compColors[i % compColors.length], pointRadius: 0, tension: 0.2, borderWidth: 1, borderDash: [3,3] })),
+  ];
+  document.getElementById("tempCompLegend").textContent = "六指数分量（虚线）：" + compKeys.join(" / ");
+  new Chart(document.getElementById("tempChart"), {
+    type: "line",
+    data: { labels, datasets: ds },
+    options: { scales: { x: { ticks: { maxTicksLimit: 14, color: "#8b98a5" } }, y: { min: 0, max: 100, ticks: { color: "#8b98a5" } } }, plugins: { legend: { labels: { color: "#dbe4ee", boxWidth: 12, font: { size: 10 } } } }, maintainAspectRatio: false },
+  });
+}
+function renderWeekly() {
+  const box = document.getElementById("weeklyList");
+  box.innerHTML = PW.slice().reverse().map(w => {
+    const buys = w.buys.map(b => `<span class="tag buy">买 ${b.symbol} ${b.quantity}股@${b.price}</span>`).join("");
+    const sells = w.sells.map(s => `<span class="tag sell">卖 ${s.symbol} ${s.quantity}股@${s.price} <span class="dimm">${s.reason}</span></span>`).join("");
+    const crash = [...w.buys, ...w.sells].filter(x => (x.reason||"").includes("crash")).length ? `<span class="tag crash">crash</span>` : "";
+    return `<details><summary>决策周 ${w.week} · 模式 ${w.mode} · 目标 ${w.target_count} 只 · 持仓 ${w.holdings.length} 只 · 周收益 <span class="${cls(w.week_return)}">${pct(w.week_return)}</span>${crash}<span class="mini">买入 ${w.buys.length} 笔 / 卖出 ${w.sells.length} 笔</span></summary>
+      <div style="margin-top:8px">${buys || '<span class="dimm">本周无买入</span>'}<br>${sells || '<span class="dimm">本周无卖出</span>'}</div>
+      <div class="mini" style="margin-top:6px">目标池: ${w.targets.join(" ") || "-"}</div>
+    </details>`;
+  }).join("");
+}
+function renderDaily() {
+  const body = document.getElementById("dailyBody");
+  const row = d => {
+    const acts = d.actions.length ? d.actions.map(a =>
+      `<span class="tag ${a.action==="buy"?"buy":"sell"}">${a.action==="buy"?"买":"卖"} ${a.symbol} ${a.quantity}股 <span class="dimm">${a.reason||""}</span></span>`).join(" ") : `<span class="dimm">—</span>`;
+    return `<tr><td>${d.date}</td><td>${f2(d.temperature)}</td><td>${f2(d.temperature)}</td><td class="mode${d.mode}">${d.mode}</td><td>${pct(d.m20)}</td><td>${pct(d.m60)}</td><td>${d.crashing ? '<span class="bad">●</span>' : '<span class="dimm">—</span>'}</td><td>${acts}</td></tr>`;
   };
+  let limit = 30;
+  const draw = list => body.innerHTML = list.slice(-limit).reverse().map(row).join("");
+  draw(PD);
+  document.getElementById("dailySearch").oninput = e => {
+    const q = (e.target.value||"").trim().toLowerCase();
+    draw(q ? PD.filter(d => d.date.includes(q) || d.actions.some(a => a.symbol.includes(q) || (a.reason||"").toLowerCase().includes(q))) : PD);
+  };
+  document.getElementById("dailyMore").onclick = () => { limit = PD.length; draw(PD); document.getElementById("dailyMore").style.display = "none"; };
 }
-function renderDecisions() {
-  document.getElementById("decBody").innerHTML = DEC.map(r => `<tr><td>${r.week}</td><td>${r.symbol}</td><td>${(r.weight*100).toFixed(1)}%</td><td>${r.mode}</td><td>${r.ratio}</td></tr>`).join("");
+function renderFourDim() {
+  const body = document.getElementById("fourBody");
+  body.innerHTML = PF.slice().reverse().map(r => {
+    const combo = [r.expected_combo && "预期", r.fund_combo && "资金"].filter(Boolean).join("+");
+    return `<tr><td>${r.week}</td><td>${r.symbol}</td><td>${r.industry||"-"}</td>
+      <td>${f2(r.technical_abs)} / ${pct(r.technical_ind,0)}</td>
+      <td>${f2(r.expected_abs)} / ${pct(r.expected_ind,0)}</td>
+      <td>${f2(r.fund_abs)} / ${pct(r.fund_ind,0)}</td>
+      <td>${f2(r.value_abs)} / ${pct(r.value_ind,0)}</td>
+      <td>${combo || "-"}</td></tr>`;
+  }).join("");
 }
 function renderObserve() {
   const box = document.getElementById("observeLog");
-  box.innerHTML = OBS.length ? OBS.map(o => `<div class="log">## ${o.file}\n${o.text}</div>`).join("<br>") : "<div class='log'>暂无观察日志</div>";
+  box.innerHTML = OBS.length ? OBS.map(o => `<div class="log">${o.text}</div><hr>`).join("") : "<div class='log'>暂无观察日志</div>";
 }
-document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
-  document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
-  document.querySelectorAll(".panel").forEach(x => x.classList.remove("active"));
-  t.classList.add("active"); document.getElementById("p-"+t.dataset.p).classList.add("active");
-});
 load();
 </script>
 </body>
