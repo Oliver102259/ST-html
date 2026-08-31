@@ -75,20 +75,26 @@
   <div style="max-height:480px; overflow:auto"><table><thead><tr><th>周</th><th>代码</th><th>行业</th><th>技术(绝对/ind)</th><th>预期(绝对/ind)</th><th>资金(绝对/ind)</th><th>价值(绝对/ind)</th><th>combo</th></tr></thead><tbody id="fourBody"></tbody></table></div>
 </div>
 
+<h2>补充视野 · 低 PB 价值观察层</h2>
+<div class="box">
+  <div class="sub">主池（top200）之外的低 PB 价值股（PB&lt;1.2 · 价分位&lt;25% · ROE≥7% · 通过否决）—— <b style="color:var(--warn)">纯观察，不产生任何买卖信号</b>。用途：预警"滑出者"、对照梦大风格、识别质量折扣误伤（研究性质）</div>
+  <div style="max-height:420px; overflow:auto"><table><thead><tr><th>代码</th><th>行业</th><th>全市场rank</th><th>PB</th><th>ROE</th><th>价分位</th><th>adjusted</th><th>梦大持有</th><th>基准价</th><th>备注</th></tr></thead><tbody id="visionBody"></tbody></table></div>
+</div>
+
 <h2>观察日志</h2>
 <div class="box" id="observeLog"></div>
 
 <script>
-let PM, PE, PD, PW, PF, OBS;
+let PM, PE, PD, PW, PF, OBS, PV;
 const f2 = x => x == null ? "-" : Number(x).toFixed(2);
 const cls = x => x > 0 ? "pos" : (x < 0 ? "neg" : "");
 const pct = (x, s=2) => x == null ? "-" : Number(x).toFixed(s) + "%";
 async function load() {
   const j = p => fetch(`data/${p}.json`).then(r => r.json());
-  [PM, PE, PD, PW, PF, OBS] = await Promise.all(["pilot_metrics","pilot_equity","pilot_daily","pilot_weekly","pilot_four_dim","observation"].map(j));
+  [PM, PE, PD, PW, PF, OBS, PV] = await Promise.all(["pilot_metrics","pilot_equity","pilot_daily","pilot_weekly","pilot_four_dim","observation","pilot_vision"].map(j));
   document.getElementById("pilotSub").textContent =
     `A股周级价值投资 · 试运行起始 ${PM.start_date}（初始资金 ¥${PM.initial_cash.toLocaleString()}）· 截至 ${PM.end_date} · 共 ${PM.decision_weeks} 个决策周 / ${PM.trading_days} 个交易日 · 仅展示，不做任何交易决策`;
-  renderMetrics(); renderEquity(); renderTemp(); renderWeekly(); renderDaily(); renderFourDim(); renderObserve();
+  renderMetrics(); renderEquity(); renderTemp(); renderWeekly(); renderDaily(); renderFourDim(); renderVision(); renderObserve();
 }
 function renderMetrics() {
   const items = [
@@ -174,6 +180,10 @@ function renderFourDim() {
       <td>${f2(r.value_abs)} / ${pct(r.value_ind,0)}</td>
       <td>${combo || "-"}</td></tr>`;
   }).join("");
+}
+function renderVision() {
+  const body = document.getElementById("visionBody");
+  body.innerHTML = PV.map(v => `<tr><td>${v.code}</td><td>${v.industry||"-"}</td><td>${v.rank ?? "-"}</td><td>${f2(v.pb)}</td><td>${pct(v.roe_pct,1)}</td><td>${pct(v.price_pct,1)}</td><td>${v.adjusted ?? "-"}</td><td>${v.mengda ? '<span class="tag buy">梦大</span>' : "-"}</td><td>${v.base_close ?? "-"}</td><td class="dimm">${v.note||""}</td></tr>`).join("");
 }
 function renderObserve() {
   const box = document.getElementById("observeLog");
