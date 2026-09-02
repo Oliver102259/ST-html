@@ -14,5 +14,8 @@
  "total_cost": 1725.2,
  "final_positions": 11,
  "trading_days": 161,
- "decision_weeks": 33
+ "decision_weeks": 33,
+ "latest_invested": 229611.0,
+ "latest_invested_chg": 4058.0,
+ "latest_invested_chg_pct": 1.8
 }

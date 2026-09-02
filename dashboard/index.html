@@ -106,6 +106,7 @@ function renderMetrics() {
     ["基准收益", pct(PM.benchmark_return), "超额 " + pct(PM.excess_return)],
     ["持仓数", PM.final_positions, "平均持仓"],
     ["累计交易成本", "¥" + PM.total_cost.toLocaleString(), PM.closed_trades + " 笔已平仓"],
+    ["最新持仓金额", "¥" + (PM.latest_invested ?? 0).toLocaleString(), (PM.latest_invested_chg != null ? (PM.latest_invested_chg >= 0 ? "▲ +¥" : "▼ ¥") + Math.abs(PM.latest_invested_chg).toLocaleString() + " (" + (PM.latest_invested_chg_pct >= 0 ? "+" : "") + PM.latest_invested_chg_pct + "%)" : "较上一交易日")],
   ];
   document.getElementById("metricCards").innerHTML = items.map(([k,v,d]) =>
     `<div class="card"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join("");
@@ -117,6 +118,7 @@ function renderEquity() {
       labels: PE.map(p => p.date),
       datasets: [
         { label: "净值 (¥)", data: PE.map(p => p.equity), borderColor: "#4da3ff", yAxisID: "y", pointRadius: 0, tension: 0.2, borderWidth: 2 },
+        { label: "持仓金额 (¥)", data: PE.map(p => p.invested ?? null), borderColor: "#ffb454", yAxisID: "y", pointRadius: 0, tension: 0.2, borderWidth: 1.5, borderDash: [5,4] },
         { label: "回撤 (%)", data: PE.map(p => p.drawdown), borderColor: "#ff6b6b", yAxisID: "y1", pointRadius: 0, tension: 0.2, borderWidth: 1.5 },
       ],
     },
