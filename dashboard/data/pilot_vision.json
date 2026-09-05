@@ -10,6 +10,7 @@
   "mengda": "华帝股份",
   "base_close": 4.68,
   "base_date": "2026-08-28",
+  "name": "华帝股份",
   "note": "曾入池(历史30%)"
  },
  {
@@ -23,6 +24,7 @@
   "mengda": "华域汽车",
   "base_close": 15.39,
   "base_date": "2026-08-28",
+  "name": "华域汽车",
   "note": ""
  },
  {
@@ -36,6 +38,7 @@
   "mengda": "",
   "base_close": 6.85,
   "base_date": "2026-08-28",
+  "name": "嘉化能源",
   "note": ""
  },
  {
@@ -49,6 +52,7 @@
   "mengda": "",
   "base_close": 7.47,
   "base_date": "2026-08-28",
+  "name": "骆驼股份",
   "note": ""
  },
  {
@@ -62,6 +66,7 @@
   "mengda": "",
   "base_close": 24.93,
   "base_date": "2026-08-28",
+  "name": "扬州金泉",
   "note": ""
  },
  {
@@ -75,6 +80,7 @@
   "mengda": "",
   "base_close": 7.7,
   "base_date": "2026-08-28",
+  "name": "中材国际",
   "note": ""
  },
  {
@@ -88,6 +94,7 @@
   "mengda": "",
   "base_close": 14.17,
   "base_date": "2026-08-28",
+  "name": "森麒麟",
   "note": ""
  },
  {
@@ -101,6 +108,7 @@
   "mengda": "",
   "base_close": 13.78,
   "base_date": "2026-08-28",
+  "name": "三一重能",
   "note": ""
  },
  {
@@ -114,6 +122,7 @@
   "mengda": "",
   "base_close": 7.04,
   "base_date": "2026-08-28",
+  "name": "陕天然气",
   "note": ""
  },
  {
@@ -127,6 +136,7 @@
   "mengda": "",
   "base_close": 4.97,
   "base_date": "2026-08-28",
+  "name": "山东路桥",
   "note": ""
  },
  {
@@ -140,6 +150,7 @@
   "mengda": "",
   "base_close": 5.27,
   "base_date": "2026-08-28",
+  "name": "中交设计",
   "note": ""
  },
  {
@@ -153,6 +164,7 @@
   "mengda": "",
   "base_close": 8.14,
   "base_date": "2026-08-28",
+  "name": "渤海轮渡",
   "note": ""
  },
  {
@@ -166,6 +178,7 @@
   "mengda": "柳药集团",
   "base_close": 15.92,
   "base_date": "2026-08-28",
+  "name": "柳药集团",
   "note": ""
  },
  {
@@ -179,6 +192,7 @@
   "mengda": "",
   "base_close": 13.19,
   "base_date": "2026-08-28",
+  "name": "北京人力",
   "note": ""
  },
  {
@@ -192,6 +206,7 @@
   "mengda": "",
   "base_close": 9.0,
   "base_date": "2026-08-28",
+  "name": "洪城环境",
   "note": ""
  },
  {
@@ -205,6 +220,7 @@
   "mengda": "创业环保",
   "base_close": 5.6,
   "base_date": "2026-08-28",
+  "name": "创业环保",
   "note": ""
  },
  {
@@ -218,6 +234,7 @@
   "mengda": "",
   "base_close": 26.77,
   "base_date": "2026-08-28",
+  "name": "国药股份",
   "note": ""
  },
  {
@@ -231,6 +248,7 @@
   "mengda": "",
   "base_close": 3.37,
   "base_date": "2026-08-28",
+  "name": "龙建股份",
   "note": ""
  },
  {
@@ -244,6 +262,7 @@
   "mengda": "",
   "base_close": 16.41,
   "base_date": "2026-08-28",
+  "name": "上海医药",
   "note": ""
  },
  {
@@ -257,6 +276,7 @@
   "mengda": "白云山",
   "base_close": 20.42,
   "base_date": "2026-08-28",
+  "name": "白云山",
   "note": ""
  },
  {
@@ -270,6 +290,7 @@
   "mengda": "",
   "base_close": 3.26,
   "base_date": "2026-08-28",
+  "name": "广东建工",
   "note": ""
  },
  {
@@ -283,6 +304,7 @@
   "mengda": "",
   "base_close": 7.87,
   "base_date": "2026-08-28",
+  "name": "柳    工",
   "note": ""
  },
  {
@@ -296,6 +318,7 @@
   "mengda": "",
   "base_close": 16.34,
   "base_date": "2026-08-28",
+  "name": "江铃汽车",
   "note": ""
  },
  {
@@ -309,6 +332,7 @@
   "mengda": "",
   "base_close": 25.4,
   "base_date": "2026-08-28",
+  "name": "聚胶股份",
   "note": ""
  },
  {
@@ -322,6 +346,7 @@
   "mengda": "",
   "base_close": 9.89,
   "base_date": "2026-08-28",
+  "name": "英特集团",
   "note": ""
  },
  {
@@ -335,6 +360,7 @@
   "mengda": "",
   "base_close": 4.06,
   "base_date": "2026-08-28",
+  "name": "富奥股份",
   "note": ""
  },
  {
@@ -348,6 +374,7 @@
   "mengda": "海容冷链",
   "base_close": 11.19,
   "base_date": "2026-08-28",
+  "name": "海容冷链",
   "note": ""
  },
  {
@@ -361,6 +388,7 @@
   "mengda": "",
   "base_close": 6.07,
   "base_date": "2026-08-28",
+  "name": "设计总院",
   "note": ""
  },
  {
@@ -374,6 +402,7 @@
   "mengda": "",
   "base_close": 5.49,
   "base_date": "2026-08-28",
+  "name": "康力电梯",
   "note": ""
  },
  {
@@ -387,6 +416,7 @@
   "mengda": "",
   "base_close": 6.82,
   "base_date": "2026-08-28",
+  "name": "中联重科",
   "note": ""
  },
  {
@@ -400,6 +430,7 @@
   "mengda": "",
   "base_close": 4.99,
   "base_date": "2026-08-28",
+  "name": "中国通号",
   "note": ""
  },
  {
@@ -413,6 +444,7 @@
   "mengda": "",
   "base_close": 5.62,
   "base_date": "2026-08-28",
+  "name": "华贸物流",
   "note": ""
  }
 ]
