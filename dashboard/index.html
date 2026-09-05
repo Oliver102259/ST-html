@@ -8,94 +8,135 @@
 <style>
   :root { --bg:#0f1419; --card:#1a2129; --line:#2a3340; --fg:#dbe4ee; --dim:#8b98a5; --acc:#4da3ff; --ok:#3ddc84; --bad:#ff6b6b; --warn:#ffb454; }
   * { box-sizing:border-box; margin:0; padding:0; }
-  body { background:var(--bg); color:var(--fg); font-family:"Segoe UI","Microsoft YaHei",sans-serif; padding:20px; max-width:1400px; margin:0 auto; }
-  h1 { font-size:24px; margin-bottom:2px; }
-  .sub { color:var(--dim); font-size:12px; margin-bottom:8px; }
+  body { background:var(--bg); color:var(--fg); font-family:"Segoe UI","Microsoft YaHei",sans-serif; padding:20px; max-width:1500px; margin:0 auto; }
+  h1 { font-size:22px; margin-bottom:2px; }
+  .sub { color:var(--dim); font-size:12px; margin-bottom:10px; }
   .badge { display:inline-block; padding:2px 10px; border-radius:10px; font-size:12px; background:var(--acc); color:#fff; margin-left:8px; vertical-align:middle; }
-  h2 { font-size:16px; margin:26px 0 10px; padding-top:14px; border-top:1px solid var(--line); color:var(--fg); }
-  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin-bottom:8px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; }
+  .tabbar { display:flex; flex-wrap:wrap; gap:6px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:10px 0; margin-bottom:16px; }
+  .tab { padding:7px 15px; border:1px solid var(--line); border-radius:8px; cursor:pointer; color:var(--dim); font-size:13px; background:var(--card); }
+  .tab:hover { border-color:var(--acc); color:var(--fg); }
+  .tab.active { background:var(--acc); color:#fff; border-color:var(--acc); font-weight:600; }
+  .panel { display:none; } .panel.active { display:block; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); gap:10px; margin-bottom:10px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:11px; }
   .card .k { font-size:11px; color:var(--dim); margin-bottom:4px; }
-  .card .v { font-size:20px; font-weight:600; }
+  .card .v { font-size:19px; font-weight:600; }
   .card .d { font-size:11px; color:var(--dim); margin-top:4px; }
   .pos { color:var(--ok); } .neg { color:var(--bad); } .warn { color:var(--warn); }
   table { width:100%; border-collapse:collapse; font-size:12px; background:var(--card); border-radius:10px; overflow:hidden; margin-bottom:8px; }
-  th, td { padding:7px 10px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th, td { padding:6px 9px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap; }
   th { background:#202a35; color:var(--dim); font-weight:600; position:sticky; top:0; }
   tr:hover td { background:#1e2833; }
-  .box { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:8px; }
-  .chartbox { position:relative; height:260px; }
-  details { background:var(--card); border:1px solid var(--line); border-radius:10px; margin-bottom:6px; padding:10px 14px; }
-  summary { cursor:pointer; font-size:13px; color:var(--fg); }
+  .box { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:13px; margin-bottom:8px; }
+  .chartbox { position:relative; height:300px; }
+  .seg { display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; margin-bottom:8px; }
+  .seg button { background:var(--card); color:var(--dim); border:none; padding:5px 16px; font-size:12px; cursor:pointer; }
+  .seg button.active { background:var(--acc); color:#fff; }
+  details { background:var(--card); border:1px solid var(--line); border-radius:10px; margin-bottom:6px; padding:9px 13px; }
+  summary { cursor:pointer; font-size:13px; }
   summary:hover { color:var(--acc); }
   .mini { font-size:11px; color:var(--dim); margin-left:8px; }
   .tag { display:inline-block; font-size:11px; padding:1px 8px; border-radius:8px; margin-right:4px; }
   .tag.buy { background:#123a2a; color:var(--ok); } .tag.sell { background:#3a1820; color:var(--bad); }
-  .tag.crash { background:#3a2f12; color:var(--warn); }
-  .log { white-space:pre-wrap; font-size:12px; color:var(--fg); }
-  button { background:var(--card); color:var(--acc); border:1px solid var(--line); border-radius:8px; padding:6px 14px; font-size:12px; cursor:pointer; margin:6px 0; }
-  button:hover { border-color:var(--acc); }
+  .tag.crash { background:#3a2f12; color:var(--warn); } .tag.md { background:#2a2340; color:#b48cff; }
+  .log { white-space:pre-wrap; font-size:12px; }
+  button.pbtn { background:var(--card); color:var(--acc); border:1px solid var(--line); border-radius:8px; padding:5px 13px; font-size:12px; cursor:pointer; margin:6px 0; }
+  button.pbtn:hover { border-color:var(--acc); }
   .modeB1 { color:var(--acc); } .modeB2 { color:var(--dim); } .modeB3 { color:var(--bad); }
   .dimm { color:var(--dim); font-size:11px; }
-  input { background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-size:12px; margin-bottom:8px; width:280px; }
+  input { background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:5px 9px; font-size:12px; margin-bottom:8px; width:260px; }
+  .scroll { max-height:520px; overflow:auto; }
   hr { border-color:var(--line); margin:10px 0; }
 </style>
 </head>
 <body>
 <h1>2026 试运行<span class="badge">试运行年 · 第 1 年</span></h1>
 <div class="sub" id="pilotSub">加载中…</div>
+<hr>
 
-<h2>总览</h2>
-<div class="cards" id="metricCards"></div>
-
-<h2>净值与回撤</h2>
-<div class="box"><div class="chartbox"><canvas id="eqChart"></canvas></div></div>
-
-<h2>六指数温度与大盘每日得分</h2>
-<div class="box">
-  <div class="sub">加权温度 0–100（冷 ≤ 阈值 / 热 ≥ 阈值），温度即当日大盘得分；crashing = m20/m60 击穿崩盘阈值</div>
-  <div class="chartbox"><canvas id="tempChart"></canvas></div>
-</div>
-<div id="tempCompLegend" class="sub" style="margin:6px 0"></div>
-
-<h2>周决策</h2>
-<div id="weeklyList"></div>
-
-<h2>日决策</h2>
-<div class="box">
-  <div class="sub">每日：六指数温度 / 大盘得分 / 模式 / m20 / m60 / 崩盘标志 / 当日执行的买卖动作（含原因）</div>
-  <input id="dailySearch" placeholder="筛选日期 / 代码 / 原因…">
-  <div style="max-height:460px; overflow:auto"><table><thead><tr><th>日期</th><th>温度</th><th>大盘得分</th><th>模式</th><th>m20</th><th>m60</th><th>崩盘</th><th>当日动作</th></tr></thead><tbody id="dailyBody"></tbody></table></div>
-  <button id="dailyMore">显示全部</button>
+<div class="tabbar" id="tabbar">
+  <div class="tab active" data-p="overview">总览</div>
+  <div class="tab" data-p="equity">净值与回撤</div>
+  <div class="tab" data-p="temp">六指数温度与大盘每日得分</div>
+  <div class="tab" data-p="weekly">周决策</div>
+  <div class="tab" data-p="daily">日决策</div>
+  <div class="tab" data-p="fourdim">每周持仓 · 四维度评价</div>
+  <div class="tab" data-p="vision">补充视野 · 低PB价值观察层</div>
+  <div class="tab" data-p="top200">每周Top200候选池</div>
+  <div class="tab" data-p="observe">观察日志</div>
 </div>
 
-<h2>每周持仓 · 四维度评价</h2>
-<div class="box">
-  <div class="sub">技术 / 预期 / 资金 / 价值：绝对分 + 行业内分位（ind），combo = 预期/资金组合命中</div>
-  <div style="max-height:480px; overflow:auto"><table><thead><tr><th>周</th><th>代码</th><th>行业</th><th>技术(绝对/ind)</th><th>预期(绝对/ind)</th><th>资金(绝对/ind)</th><th>价值(绝对/ind)</th><th>combo</th></tr></thead><tbody id="fourBody"></tbody></table></div>
+<div class="panel active" id="p-overview"><div class="cards" id="metricCards"></div></div>
+
+<div class="panel" id="p-equity"><div class="box"><div class="chartbox"><canvas id="eqChart"></canvas></div></div></div>
+
+<div class="panel" id="p-temp">
+  <div class="seg" id="kseg">
+    <button data-k="D" class="active">日K</button><button data-k="W">周K</button><button data-k="M">月K</button>
+  </div>
+  <div class="sub">六指数加权温度 0–100（= 当日大盘得分）；虚线为六指数分量（上证指数/深证成指/沪深300/中证500/上证50/创业板指）</div>
+  <div class="box"><div class="chartbox"><canvas id="tempChart"></canvas></div></div>
 </div>
 
-<h2>补充视野 · 低 PB 价值观察层</h2>
-<div class="box">
-  <div class="sub">主池（top200）之外的低 PB 价值股（PB&lt;1.2 · 价分位&lt;25% · ROE≥7% · 通过否决）—— <b style="color:var(--warn)">纯观察，不产生任何买卖信号</b>。用途：预警"滑出者"、对照梦大风格、识别质量折扣误伤（研究性质）</div>
-  <div style="max-height:420px; overflow:auto"><table><thead><tr><th>代码</th><th>行业</th><th>全市场rank</th><th>PB</th><th>ROE</th><th>价分位</th><th>adjusted</th><th>梦大持有</th><th>基准价</th><th>备注</th></tr></thead><tbody id="visionBody"></tbody></table></div>
+<div class="panel" id="p-weekly"><div id="weeklyList"></div></div>
+
+<div class="panel" id="p-daily">
+  <div class="box">
+    <div class="sub">每日：温度/大盘得分/模式/m20/m60/崩盘标志/当日买卖动作（含原因）</div>
+    <input id="dailySearch" placeholder="筛选日期 / 代码 / 原因…">
+    <div class="scroll"><table><thead><tr><th>日期</th><th>温度</th><th>大盘得分</th><th>模式</th><th>m20</th><th>m60</th><th>崩盘</th><th>当日动作</th></tr></thead><tbody id="dailyBody"></tbody></table></div>
+    <button class="pbtn" id="dailyMore">显示全部</button>
+  </div>
 </div>
 
-<h2>观察日志</h2>
-<div class="box" id="observeLog"></div>
+<div class="panel" id="p-fourdim">
+  <div class="box">
+    <div class="sub">技术 / 预期 / 资金 / 价值：绝对分 + 行业内分位（ind），combo = 预期/资金组合命中</div>
+    <div class="scroll"><table><thead><tr><th>周</th><th>代码</th><th>名称</th><th>行业</th><th>技术(绝对/ind)</th><th>预期(绝对/ind)</th><th>资金(绝对/ind)</th><th>价值(绝对/ind)</th><th>combo</th></tr></thead><tbody id="fourBody"></tbody></table></div>
+  </div>
+</div>
+
+<div class="panel" id="p-vision">
+  <div class="box">
+    <div class="sub">主池（top200）之外的低 PB 价值股（PB&lt;1.2 · 价分位&lt;25% · ROE≥7% · 通过否决）—— <b style="color:var(--warn)">纯观察，不产生任何买卖信号</b>。用途：预警"滑出者"、对照梦大风格、识别质量折扣误伤（研究性质）</div>
+    <div class="scroll"><table><thead><tr><th>代码</th><th>名称</th><th>行业</th><th>全市场rank</th><th>PB</th><th>ROE</th><th>价分位</th><th>adjusted</th><th>梦大持有</th><th>基准价</th><th>备注</th></tr></thead><tbody id="visionBody"></tbody></table></div>
+  </div>
+</div>
+
+<div class="panel" id="p-top200">
+  <div class="box">
+    <div class="sub" id="top200Sub">加载中…</div>
+    <input id="top200Search" placeholder="筛选代码 / 名称 / 行业…">
+    <div class="scroll"><table><thead><tr><th>rank</th><th>代码</th><th>名称</th><th>行业</th><th>PB</th><th>ROE</th><th>价分位</th><th>adjusted</th><th>基准价</th><th>备注</th></tr></thead><tbody id="top200Body"></tbody></table></div>
+  </div>
+</div>
+
+<div class="panel" id="p-observe"><div class="box" id="observeLog"></div></div>
 
 <script>
-let PM, PE, PD, PW, PF, OBS, PV;
+let PM, PE, PD, PW, PF, PV, PT, OBS;
+let tempChart = null;
 const f2 = x => x == null ? "-" : Number(x).toFixed(2);
 const cls = x => x > 0 ? "pos" : (x < 0 ? "neg" : "");
 const pct = (x, s=2) => x == null ? "-" : Number(x).toFixed(s) + "%";
+
 async function load() {
   const j = p => fetch(`data/${p}.json`).then(r => r.json());
-  [PM, PE, PD, PW, PF, OBS, PV] = await Promise.all(["pilot_metrics","pilot_equity","pilot_daily","pilot_weekly","pilot_four_dim","observation","pilot_vision"].map(j));
+  [PM, PE, PD, PW, PF, PV, PT, OBS] = await Promise.all(["pilot_metrics","pilot_equity","pilot_daily","pilot_weekly","pilot_four_dim","pilot_vision","pilot_top200","observation"].map(j));
   document.getElementById("pilotSub").textContent =
     `A股周级价值投资 · 试运行起始 ${PM.start_date}（初始资金 ¥${PM.initial_cash.toLocaleString()}）· 截至 ${PM.end_date} · 共 ${PM.decision_weeks} 个决策周 / ${PM.trading_days} 个交易日 · 仅展示，不做任何交易决策`;
-  renderMetrics(); renderEquity(); renderTemp(); renderWeekly(); renderDaily(); renderFourDim(); renderVision(); renderObserve();
+  renderMetrics(); renderEquity(); renderTemp("D"); renderWeekly(); renderDaily(); renderFourDim(); renderVision(); renderTop200(); renderObserve();
+  document.querySelectorAll("#tabbar .tab").forEach(t => t.onclick = () => {
+    document.querySelectorAll("#tabbar .tab").forEach(x => x.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(x => x.classList.remove("active"));
+    t.classList.add("active"); document.getElementById("p-"+t.dataset.p).classList.add("active");
+  });
+  document.querySelectorAll("#kseg button").forEach(b => b.onclick = () => {
+    document.querySelectorAll("#kseg button").forEach(x => x.classList.remove("active"));
+    b.classList.add("active"); renderTemp(b.dataset.k);
+  });
 }
+
 function renderMetrics() {
   const items = [
     ["当前净值", "¥" + PM.final_equity.toLocaleString(), "截至 " + PM.end_date],
@@ -111,38 +152,46 @@ function renderMetrics() {
   document.getElementById("metricCards").innerHTML = items.map(([k,v,d]) =>
     `<div class="card"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join("");
 }
+
 function renderEquity() {
   new Chart(document.getElementById("eqChart"), {
     type: "line",
-    data: {
-      labels: PE.map(p => p.date),
-      datasets: [
-        { label: "净值 (¥)", data: PE.map(p => p.equity), borderColor: "#4da3ff", yAxisID: "y", pointRadius: 0, tension: 0.2, borderWidth: 2 },
-        { label: "持仓金额 (¥)", data: PE.map(p => p.invested ?? null), borderColor: "#ffb454", yAxisID: "y", pointRadius: 0, tension: 0.2, borderWidth: 1.5, borderDash: [5,4] },
-        { label: "回撤 (%)", data: PE.map(p => p.drawdown), borderColor: "#ff6b6b", yAxisID: "y1", pointRadius: 0, tension: 0.2, borderWidth: 1.5 },
-      ],
-    },
-    options: {
-      scales: { x: { ticks: { maxTicksLimit: 12, color: "#8b98a5" } }, y: { ticks: { color: "#8b98a5" } }, y1: { position: "right", grid: { drawOnChartArea: false }, ticks: { color: "#8b98a5" } } },
-      plugins: { legend: { labels: { color: "#dbe4ee" } } }, maintainAspectRatio: false,
-    },
+    data: { labels: PE.map(p => p.date), datasets: [
+      { label: "净值 (¥)", data: PE.map(p => p.equity), borderColor: "#4da3ff", yAxisID: "y", pointRadius: 0, tension: 0.2, borderWidth: 2 },
+      { label: "持仓金额 (¥)", data: PE.map(p => p.invested ?? null), borderColor: "#ffb454", yAxisID: "y", pointRadius: 0, tension: 0.2, borderWidth: 1.5, borderDash: [5,4] },
+      { label: "回撤 (%)", data: PE.map(p => p.drawdown), borderColor: "#ff6b6b", yAxisID: "y1", pointRadius: 0, tension: 0.2, borderWidth: 1.5 },
+    ]},
+    options: { scales: { x: { ticks: { maxTicksLimit: 12, color: "#8b98a5" } }, y: { ticks: { color: "#8b98a5" } }, y1: { position: "right", grid: { drawOnChartArea: false }, ticks: { color: "#8b98a5" } } }, plugins: { legend: { labels: { color: "#dbe4ee" } } }, maintainAspectRatio: false },
   });
 }
-function renderTemp() {
-  const labels = PD.map(d => d.date);
-  const compKeys = Object.keys((PD.find(d => d.components) || {}).components || {});
+
+// 日K / 周K / 月K 聚合（周=周起始分组取周期末记录；月=按年月取末记录）
+function aggByK(data, k) {
+  if (k === "D") return data;
+  const keyFn = k === "W"
+    ? d => { const dt = new Date(d.date + "T00:00:00"); const day = (dt.getDay() + 6) % 7; dt.setDate(dt.getDate() - day); return dt.toISOString().slice(0,10); }
+    : d => d.date.slice(0,7);
+  const map = new Map();
+  for (const x of data) map.set(keyFn(x), x);
+  return [...map.values()];
+}
+
+function renderTemp(k) {
+  const data = aggByK(PD, k);
+  if (tempChart) tempChart.destroy();
+  const compKeys = Object.keys((data.find(d => d.components) || {}).components || {});
   const compColors = ["#4da3ff","#b48cff","#ffb454","#ff8fd8","#5fe3c8","#a8c8ff"];
   const ds = [
-    { label: "大盘温度/得分", data: PD.map(d => d.temperature), borderColor: "#3ddc84", pointRadius: 0, tension: 0.2, borderWidth: 2.5 },
-    ...compKeys.map((k, i) => ({ label: k, data: PD.map(d => (d.components || {})[k] ?? null), borderColor: compColors[i % compColors.length], pointRadius: 0, tension: 0.2, borderWidth: 1, borderDash: [3,3] })),
+    { label: "大盘温度/得分", data: data.map(d => d.temperature), borderColor: "#3ddc84", pointRadius: 0, tension: 0.2, borderWidth: 2.5 },
+    ...compKeys.map((key, i) => ({ label: key, data: data.map(d => (d.components || {})[key] ?? null), borderColor: compColors[i % compColors.length], pointRadius: 0, tension: 0.2, borderWidth: 1, borderDash: [3,3] })),
   ];
-  document.getElementById("tempCompLegend").textContent = "六指数分量（虚线）：" + compKeys.join(" / ");
-  new Chart(document.getElementById("tempChart"), {
+  tempChart = new Chart(document.getElementById("tempChart"), {
     type: "line",
-    data: { labels, datasets: ds },
-    options: { scales: { x: { ticks: { maxTicksLimit: 14, color: "#8b98a5" } }, y: { min: 0, max: 100, ticks: { color: "#8b98a5" } } }, plugins: { legend: { labels: { color: "#dbe4ee", boxWidth: 12, font: { size: 10 } } } }, maintainAspectRatio: false },
+    data: { labels: data.map(d => d.date), datasets: ds },
+    options: { scales: { x: { ticks: { maxTicksLimit: 16, color: "#8b98a5" } }, y: { min: 0, max: 100, ticks: { color: "#8b98a5" } } }, plugins: { legend: { labels: { color: "#dbe4ee", boxWidth: 12, font: { size: 10 } } } }, maintainAspectRatio: false },
   });
 }
+
 function renderWeekly() {
   const box = document.getElementById("weeklyList");
   box.innerHTML = PW.slice().reverse().map(w => {
@@ -155,6 +204,7 @@ function renderWeekly() {
     </details>`;
   }).join("");
 }
+
 function renderDaily() {
   const body = document.getElementById("dailyBody");
   const row = d => {
@@ -171,11 +221,12 @@ function renderDaily() {
   };
   document.getElementById("dailyMore").onclick = () => { limit = PD.length; draw(PD); document.getElementById("dailyMore").style.display = "none"; };
 }
+
 function renderFourDim() {
   const body = document.getElementById("fourBody");
   body.innerHTML = PF.slice().reverse().map(r => {
     const combo = [r.expected_combo && "预期", r.fund_combo && "资金"].filter(Boolean).join("+");
-    return `<tr><td>${r.week}</td><td>${r.symbol}</td><td>${r.industry||"-"}</td>
+    return `<tr><td>${r.week}</td><td>${r.symbol}</td><td>${r.name||"-"}</td><td>${r.industry||"-"}</td>
       <td>${f2(r.technical_abs)} / ${pct(r.technical_ind,0)}</td>
       <td>${f2(r.expected_abs)} / ${pct(r.expected_ind,0)}</td>
       <td>${f2(r.fund_abs)} / ${pct(r.fund_ind,0)}</td>
@@ -183,10 +234,24 @@ function renderFourDim() {
       <td>${combo || "-"}</td></tr>`;
   }).join("");
 }
+
 function renderVision() {
   const body = document.getElementById("visionBody");
-  body.innerHTML = PV.map(v => `<tr><td>${v.code}</td><td>${v.industry||"-"}</td><td>${v.rank ?? "-"}</td><td>${f2(v.pb)}</td><td>${pct(v.roe_pct,1)}</td><td>${pct(v.price_pct,1)}</td><td>${v.adjusted ?? "-"}</td><td>${v.mengda ? '<span class="tag buy">梦大</span>' : "-"}</td><td>${v.base_close ?? "-"}</td><td class="dimm">${v.note||""}</td></tr>`).join("");
+  body.innerHTML = PV.map(v => `<tr><td>${v.code}</td><td>${v.name||"-"}</td><td>${v.industry||"-"}</td><td>${v.rank ?? "-"}</td><td>${f2(v.pb)}</td><td>${pct(v.roe_pct,1)}</td><td>${pct(v.price_pct,1)}</td><td>${v.adjusted ?? "-"}</td><td>${v.mengda ? '<span class="tag md">梦大</span>' : "-"}</td><td>${v.base_close ?? "-"}</td><td class="dimm">${v.note||""}</td></tr>`).join("");
 }
+
+function renderTop200() {
+  document.getElementById("top200Sub").textContent =
+    `决策周 ${PT.week}（基准价日 ${PT.price_date}）· 全市场 ROE/PB 主排序前 ${PT.count}（含否决前候选，phase2 缓存口径）`;
+  const body = document.getElementById("top200Body");
+  const draw = list => body.innerHTML = list.map(x => `<tr><td>${x.rank}</td><td>${x.symbol}</td><td>${x.name||"-"}</td><td>${x.industry||"-"}</td><td>${f2(x.pb)}</td><td>${pct(x.roe_pct,1)}</td><td>${pct(x.price_pct,1)}</td><td>${x.adjusted ?? "-"}</td><td>${x.base_close ?? "-"}</td><td>${x.note ? '<span class="tag md">'+x.note+'</span>' : ""}</td></tr>`).join("");
+  draw(PT.pool);
+  document.getElementById("top200Search").oninput = e => {
+    const q = (e.target.value||"").trim().toLowerCase();
+    draw(q ? PT.pool.filter(x => x.symbol.includes(q) || (x.name||"").toLowerCase().includes(q) || (x.industry||"").toLowerCase().includes(q)) : PT.pool);
+  };
+}
+
 function renderObserve() {
   const box = document.getElementById("observeLog");
   box.innerHTML = OBS.length ? OBS.map(o => `<div class="log">${o.text}</div><hr>`).join("") : "<div class='log'>暂无观察日志</div>";
