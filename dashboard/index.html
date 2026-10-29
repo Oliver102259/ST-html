@@ -59,6 +59,7 @@
   <div class="tab" data-p="equity">净值与回撤</div>
   <div class="tab" data-p="temp">六指数温度与大盘每日得分</div>
   <div class="tab" data-p="weekly">周决策</div>
+  <div class="tab" data-p="holdings">当前持仓明细</div>
   <div class="tab" data-p="daily">日决策</div>
   <div class="tab" data-p="fourdim">每周持仓 · 四维度评价</div>
   <div class="tab" data-p="vision">补充视野 · 低PB价值观察层</div>
@@ -79,6 +80,13 @@
 </div>
 
 <div class="panel" id="p-weekly"><div id="weeklyList"></div></div>
+
+<div class="panel" id="p-holdings">
+  <div class="box"><div class="sub" id="holdSub">加载中…</div></div>
+  <div class="box" style="margin-top:10px">
+    <div class="scroll"><table><thead><tr><th>#</th><th>代码</th><th>名称</th><th>行业</th><th>股数</th><th>成本价(含费)</th><th>现价</th><th>市值</th><th>浮动盈亏</th><th>盈亏比例</th><th>权重</th><th>建仓日</th><th>持有周</th></tr></thead><tbody id="holdBody"></tbody></table></div>
+  </div>
+</div>
 
 <div class="panel" id="p-daily">
   <div class="box">
@@ -116,16 +124,17 @@
 <script>
 let PM, PE, PD, PW, PF, PV, PT, OBS;
 let tempChart = null;
+let PH = null, PFL = null;
 const f2 = x => x == null ? "-" : Number(x).toFixed(2);
 const cls = x => x > 0 ? "pos" : (x < 0 ? "neg" : "");
 const pct = (x, s=2) => x == null ? "-" : Number(x).toFixed(s) + "%";
 
 async function load() {
   const j = p => fetch(`data/${p}.json`).then(r => r.json());
-  [PM, PE, PD, PW, PF, PV, PT, OBS] = await Promise.all(["pilot_metrics","pilot_equity","pilot_daily","pilot_weekly","pilot_four_dim","pilot_vision","pilot_top200","observation"].map(j));
+  [PM, PE, PD, PW, PF, PV, PT, OBS, PH, PFL] = await Promise.all(["pilot_metrics","pilot_equity","pilot_daily","pilot_weekly","pilot_four_dim","pilot_vision","pilot_top200","observation","pilot_holdings","pilot_fills"].map(j));
   document.getElementById("pilotSub").textContent =
     `A股周级价值投资 · 试运行起始 ${PM.start_date}（初始资金 ¥${PM.initial_cash.toLocaleString()}）· 截至 ${PM.end_date} · 共 ${PM.decision_weeks} 个决策周 / ${PM.trading_days} 个交易日 · 仅展示，不做任何交易决策`;
-  renderMetrics(); renderEquity(); renderTemp("D"); renderWeekly(); renderDaily(); renderFourDim(); renderVision(); renderTop200(); renderObserve();
+  renderMetrics(); renderEquity(); renderTemp("D"); renderHoldings(); renderWeekly(); renderDaily(); renderFourDim(); renderVision(); renderTop200(); renderObserve();
   document.querySelectorAll("#tabbar .tab").forEach(t => t.onclick = () => {
     document.querySelectorAll("#tabbar .tab").forEach(x => x.classList.remove("active"));
     document.querySelectorAll(".panel").forEach(x => x.classList.remove("active"));
@@ -161,7 +170,13 @@ function renderEquity() {
       { label: "持仓金额 (¥)", data: PE.map(p => p.invested ?? null), borderColor: "#ffb454", yAxisID: "y", pointRadius: 0, tension: 0.2, borderWidth: 1.5, borderDash: [5,4] },
       { label: "回撤 (%)", data: PE.map(p => p.drawdown), borderColor: "#ff6b6b", yAxisID: "y1", pointRadius: 0, tension: 0.2, borderWidth: 1.5 },
     ]},
-    options: { scales: { x: { ticks: { maxTicksLimit: 12, color: "#8b98a5" } }, y: { ticks: { color: "#8b98a5" } }, y1: { position: "right", grid: { drawOnChartArea: false }, ticks: { color: "#8b98a5" } } }, plugins: { legend: { labels: { color: "#dbe4ee" } } }, maintainAspectRatio: false },
+    options: { maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+    hover: { mode: "index", intersect: false },
+    plugins: { legend: { labels: { color: "#dbe4ee" } },
+      tooltip: { mode: "index", intersect: false, backgroundColor: "rgba(16,22,30,.94)",
+                 borderColor: "#2b3846", borderWidth: 1, padding: 10, displayColors: true } },
+      scales: { x: { ticks: { maxTicksLimit: 12, color: "#8b98a5" } }, y: { ticks: { color: "#8b98a5" } }, y1: { position: "right", grid: { drawOnChartArea: false }, ticks: { color: "#8b98a5" } } } },
   });
 }
 
@@ -188,7 +203,13 @@ function renderTemp(k) {
   tempChart = new Chart(document.getElementById("tempChart"), {
     type: "line",
     data: { labels: data.map(d => d.date), datasets: ds },
-    options: { scales: { x: { ticks: { maxTicksLimit: 16, color: "#8b98a5" } }, y: { min: 0, max: 100, ticks: { color: "#8b98a5" } } }, plugins: { legend: { labels: { color: "#dbe4ee", boxWidth: 12, font: { size: 10 } } } }, maintainAspectRatio: false },
+    options: { maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      hover: { mode: "index", intersect: false },
+      plugins: { legend: { labels: { color: "#dbe4ee", boxWidth: 12, font: { size: 10 } } },
+        tooltip: { mode: "index", intersect: false, backgroundColor: "rgba(16,22,30,.94)",
+                   borderColor: "#2b3846", borderWidth: 1, padding: 10, displayColors: true } },
+      scales: { x: { ticks: { maxTicksLimit: 16, color: "#8b98a5" } }, y: { min: 0, max: 100, ticks: { color: "#8b98a5" } } } },
   });
 }
 
@@ -198,8 +219,11 @@ function renderWeekly() {
     const buys = w.buys.map(b => `<span class="tag buy">买 ${b.symbol} ${b.quantity}股@${b.price}</span>`).join("");
     const sells = w.sells.map(s => `<span class="tag sell">卖 ${s.symbol} ${s.quantity}股@${s.price} <span class="dimm">${s.reason}</span></span>`).join("");
     const crash = [...w.buys, ...w.sells].filter(x => (x.reason||"").includes("crash")).length ? `<span class="tag crash">crash</span>` : "";
-    return `<details><summary>决策周 ${w.week} · 模式 ${w.mode} · 目标 ${w.target_count} 只 · 持仓 ${w.holdings.length} 只 · 周收益 <span class="${cls(w.week_return)}">${pct(w.week_return)}</span>${crash}<span class="mini">买入 ${w.buys.length} 笔 / 卖出 ${w.sells.length} 笔</span></summary>
+    const wf = (PFL && PFL.weekly.find(x => x.week === w.week) || {}).failed || [];
+    const wfTag = wf.length ? `<span class="tag bad">委托失败 ${wf.length} 笔</span>` : "";
+    return `<details><summary>决策周 ${w.week} · 模式 ${w.mode} · 目标 ${w.target_count} 只 · 持仓 ${w.holdings.length} 只 · 周收益 <span class="${cls(w.week_return)}">${pct(w.week_return)}</span>${crash}${wfTag}<span class="mini">买入 ${w.buys.length} 笔 / 卖出 ${w.sells.length} 笔</span></summary>
       <div style="margin-top:8px">${buys || '<span class="dimm">本周无买入</span>'}<br>${sells || '<span class="dimm">本周无卖出</span>'}</div>
+      <div style="margin-top:6px">${failTags(wf, "次日未成交") || ""}</div>
       <div class="mini" style="margin-top:6px">目标池: ${w.targets.join(" ") || "-"}</div>
     </details>`;
   }).join("");
@@ -208,9 +232,10 @@ function renderWeekly() {
 function renderDaily() {
   const body = document.getElementById("dailyBody");
   const row = d => {
+    const df = (PFL && PFL.daily.find(x => x.date === d.date) || {}).failed || [];
     const acts = d.actions.length ? d.actions.map(a =>
       `<span class="tag ${a.action==="buy"?"buy":"sell"}">${a.action==="buy"?"买":"卖"} ${a.symbol} ${a.quantity}股 <span class="dimm">${a.reason||""}</span></span>`).join(" ") : `<span class="dimm">—</span>`;
-    return `<tr><td>${d.date}</td><td>${f2(d.temperature)}</td><td>${f2(d.temperature)}</td><td class="mode${d.mode}">${d.mode}</td><td>${pct(d.m20)}</td><td>${pct(d.m60)}</td><td>${d.crashing ? '<span class="bad">●</span>' : '<span class="dimm">—</span>'}</td><td>${acts}</td></tr>`;
+    return `<tr><td>${d.date}</td><td>${f2(d.temperature)}</td><td>${f2(d.temperature)}</td><td class="mode${d.mode}">${d.mode}</td><td>${pct(d.m20)}</td><td>${pct(d.m60)}</td><td>${d.crashing ? '<span class="bad">●</span>' : '<span class="dimm">—</span>'}</td><td>${acts}${df.length ? " " + failTags(df, "次日未成交") : ""}</td></tr>`;
   };
   let limit = 30;
   const draw = list => body.innerHTML = list.slice(-limit).reverse().map(row).join("");
@@ -220,6 +245,30 @@ function renderDaily() {
     draw(q ? PD.filter(d => d.date.includes(q) || d.actions.some(a => a.symbol.includes(q) || (a.reason||"").toLowerCase().includes(q))) : PD);
   };
   document.getElementById("dailyMore").onclick = () => { limit = PD.length; draw(PD); document.getElementById("dailyMore").style.display = "none"; };
+}
+
+
+function failTags(list, kind) {
+  if (!list || !list.length) return "";
+  return list.map(o => `<span class="tag bad" title="${o.note||''}">${kind}失败 ${o.symbol}@${o.price}</span>`).join(" ");
+}
+
+function renderHoldings() {
+  if (!PH) return;
+  const sub = document.getElementById("holdSub");
+  const sign = v => (v > 0 ? "+" : "");
+  sub.innerHTML = `截至 <b>${PH.as_of}</b> · 持仓 <b>${PH.position_count}</b> 只 · 总市值 <b>¥${PH.total_market_value.toLocaleString()}</b> `
+    + `· 总成本(含费) ¥${PH.total_cost_basis.toLocaleString()} · 浮动盈亏 <b class="${cls(PH.total_pnl)}">${sign(PH.total_pnl)}¥${PH.total_pnl.toLocaleString()}</b> `
+    + `(<span class="${cls(PH.total_pnl)}">${sign(PH.total_pnl_pct)}${PH.total_pnl_pct}%</span>)`
+    + `<div class="mini" style="margin-top:6px">成本口径：移动加权平均，买入手续费摊入成本、卖出不改成本价 · 现价取最新收盘</div>`;
+  const body = document.getElementById("holdBody");
+  body.innerHTML = PH.rows.map((r, i) => `<tr>
+    <td>${i+1}</td><td>${r.symbol}</td><td>${r.name||"-"}</td><td class="dimm">${r.industry||"-"}</td>
+    <td>${r.qty.toLocaleString()}</td><td>${f2(r.avg_cost)}</td><td>${f2(r.close)}</td>
+    <td>${r.market_value.toLocaleString()}</td>
+    <td class="${cls(r.pnl)}">${sign(r.pnl)}${r.pnl.toLocaleString()}</td>
+    <td class="${cls(r.pnl)}">${sign(r.pnl_pct)}${r.pnl_pct}%</td>
+    <td>${r.weight_pct}%</td><td class="dimm">${r.first_buy||"-"}</td><td>${r.held_weeks ?? "-"}</td></tr>`).join("");
 }
 
 function renderFourDim() {
