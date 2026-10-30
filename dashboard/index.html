@@ -64,6 +64,7 @@
   <div class="tab" data-p="fourdim">每周持仓 · 四维度评价</div>
   <div class="tab" data-p="vision">补充视野 · 低PB价值观察层</div>
   <div class="tab" data-p="top200">每周Top200候选池</div>
+  <div class="tab" data-p="targets">周决策目标池</div>
   <div class="tab" data-p="observe">观察日志</div>
 </div>
 
@@ -119,22 +120,34 @@
   </div>
 </div>
 
+<div class="panel" id="p-targets">
+  <div class="box">
+    <div class="sub" id="targetsSub">加载中…</div>
+    <div class="sub" id="targetsNote"></div>
+    <div class="scroll"><table><thead><tr><th>#</th><th>代码</th><th>名称</th><th>行业</th><th>总分</th><th>基本面分</th><th>PB</th><th>价分位</th><th>ROE</th><th>池内排名</th></tr></thead><tbody id="targetsBody"></tbody></table></div>
+  </div>
+  <div class="box">
+    <div class="sub">每周变动 · 新进 / 掉出：原因只从缓存里的分数、池内排名、基本面与估值推导；「公告」列仅为旁证，不用来反推原因</div>
+    <div id="targetsChange"></div>
+  </div>
+</div>
+
 <div class="panel" id="p-observe"><div class="box" id="observeLog"></div></div>
 
 <script>
 let PM, PE, PD, PW, PF, PV, PT, OBS;
 let tempChart = null;
-let PH = null, PFL = null;
+let PH = null, PFL = null, PTG = null;
 const f2 = x => x == null ? "-" : Number(x).toFixed(2);
 const cls = x => x > 0 ? "pos" : (x < 0 ? "neg" : "");
 const pct = (x, s=2) => x == null ? "-" : Number(x).toFixed(s) + "%";
 
 async function load() {
   const j = p => fetch(`data/${p}.json`).then(r => r.json());
-  [PM, PE, PD, PW, PF, PV, PT, OBS, PH, PFL] = await Promise.all(["pilot_metrics","pilot_equity","pilot_daily","pilot_weekly","pilot_four_dim","pilot_vision","pilot_top200","observation","pilot_holdings","pilot_fills"].map(j));
+  [PM, PE, PD, PW, PF, PV, PT, OBS, PH, PFL, PTG] = await Promise.all(["pilot_metrics","pilot_equity","pilot_daily","pilot_weekly","pilot_four_dim","pilot_vision","pilot_top200","observation","pilot_holdings","pilot_fills","pilot_targets"].map(j));
   document.getElementById("pilotSub").textContent =
     `A股周级价值投资 · 试运行起始 ${PM.start_date}（初始资金 ¥${PM.initial_cash.toLocaleString()}）· 截至 ${PM.end_date} · 共 ${PM.decision_weeks} 个决策周 / ${PM.trading_days} 个交易日 · 仅展示，不做任何交易决策`;
-  renderMetrics(); renderEquity(); renderTemp("D"); renderHoldings(); renderWeekly(); renderDaily(); renderFourDim(); renderVision(); renderTop200(); renderObserve();
+  renderMetrics(); renderEquity(); renderTemp("D"); renderHoldings(); renderWeekly(); renderDaily(); renderFourDim(); renderVision(); renderTop200(); renderTargets(); renderObserve();
   document.querySelectorAll("#tabbar .tab").forEach(t => t.onclick = () => {
     document.querySelectorAll("#tabbar .tab").forEach(x => x.classList.remove("active"));
     document.querySelectorAll(".panel").forEach(x => x.classList.remove("active"));
@@ -299,6 +312,57 @@ function renderTop200() {
     const q = (e.target.value||"").trim().toLowerCase();
     draw(q ? PT.pool.filter(x => x.symbol.includes(q) || (x.name||"").toLowerCase().includes(q) || (x.industry||"").toLowerCase().includes(q)) : PT.pool);
   };
+}
+
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function renderTargets() {
+  const sub = document.getElementById("targetsSub"), note = document.getElementById("targetsNote");
+  if (!PTG || !PTG.data || !PTG.data.length) { sub.textContent = "暂无目标池数据"; return; }
+  const weeks = PTG.data, latest = weeks[weeks.length - 1], v = PTG.veto || {};
+
+  sub.textContent = `决策周 ${latest.week}（模式 ${latest.market_mode || "-"}）· 目标池 ${latest.targets.length} 只` +
+    ` · phase3 技术池 ${latest.pool_size ?? "-"} 只 / phase2 候选 ${latest.phase2_size ?? "-"} 只`;
+
+  // 口径说明：目标池与 Top200 不是同一套排序；否决覆盖范围也要讲清，避免把「未覆盖」读成「未触发」
+  const notImpl = (v.placeholder || []), blocked = (v.blocked_by_missing_data || []);
+  note.innerHTML =
+    `目标池 = phase3 技术池（已过否决）内按 <b>total_score</b> 降序取前 15。<b>与「每周Top200候选池」不是同一套排序</b>：` +
+    `Top200 是 phase2 前 200 按基本面 adjusted_score 排序（否决前），目标池是否决后按 total_score 取前 15。<br>` +
+    `否决只覆盖财务类（已实现：${(v.evaluable || []).join(" / ") || "-"}）；` +
+    (notImpl.length ? `未实现（无外部数据源，配置占位）：${notImpl.join(" / ")} —— 属「系统未覆盖该维度」，不等于「未触发」；` : "") +
+    (blocked.length ? `已实现但缓存同比字段全空、本次未真正判定：${blocked.join(" / ")}；` : "") +
+    `共回看 ${weeks.length} 个决策周（${weeks[0].week} → ${latest.week}）。`;
+
+  document.getElementById("targetsBody").innerHTML = latest.targets.map(t => `<tr>
+    <td>${t.repr}</td><td>${t.symbol}</td><td>${esc(t.name) || "-"}</td><td>${t.industry || "-"}</td>
+    <td>${t.total_score ?? "-"}</td>
+    <td>${t.adjusted_score == null ? "-" : Number(t.adjusted_score).toFixed(4)}</td>
+    <td>${f2(t.pb)}</td>
+    <td>${pct(t.price_percentile == null ? null : t.price_percentile * 100, 1)}</td>
+    <td>${pct(t.roe == null ? null : t.roe * 100, 1)}</td>
+    <td>${t.rank_in_pool ?? "-"}</td></tr>`).join("");
+
+  const annCell = x => {
+    const list = x.announcements || [];
+    if (!list.length) return "-";
+    const head = list.slice(0, 3).map(a =>
+      `${a.date} ${esc(a.title)}<span class="mini">${esc(a.type)}</span>`).join("<br>");
+    return head + (list.length > 3 ? `<br><span class="mini">共 ${list.length} 条</span>` : "");
+  };
+  const rowsOf = (arr, sign, klass) => arr.map(x => `<tr>
+    <td class="${klass}">${sign}</td><td>${x.symbol}</td><td>${esc(x.name) || "-"}</td><td>${x.industry || "-"}</td>
+    <td style="white-space:normal;min-width:430px">${x.reason}${x.reason_confident === false ? ' <span class="tag crash">原因不确定</span>' : ""}</td>
+    <td class="dimm" style="white-space:normal;min-width:300px">${annCell(x)}</td></tr>`).join("");
+
+  document.getElementById("targetsChange").innerHTML = weeks.slice().reverse().map(w => {
+    const n = (w.added || []).length + (w.removed || []).length;
+    if (!n) return `<details><summary>${w.week} · 无变动<span class="mini">${w.note || ""}</span></summary></details>`;
+    return `<details${w.week === latest.week ? " open" : ""}><summary>${w.week} · 新进 ${w.added.length} / 掉出 ${w.removed.length}` +
+      `<span class="mini">对比 ${w.compare_from || "-"}</span></summary>
+      <table><thead><tr><th></th><th>代码</th><th>名称</th><th>行业</th><th>原因（只取缓存数据推导）</th><th>公告旁证</th></tr></thead>
+      <tbody>${rowsOf(w.added, "+", "pos")}${rowsOf(w.removed, "−", "neg")}</tbody></table></details>`;
+  }).join("");
 }
 
 function renderObserve() {
