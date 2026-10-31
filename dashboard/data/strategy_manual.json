@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-31 21:32:34",
+  "generated_at": "2026-11-01 01:36:34",
   "source_file": "config/strategy_manual.yaml",
   "meta": {
     "title": "总策略",
@@ -601,6 +601,11 @@
           "name": "日级止损扫描",
           "detail": "非决策日遍历全部持仓，只判硬止损这一个信号（技术/高点/基本面一律留到周五决断）。",
           "source": "src/backtest/strategy.py:716"
+        },
+        {
+          "name": "未接线通道（配置存在但代码里没有调用点）",
+          "detail": "日级限价确认卖出（_place_daily_sell，其 _settle_daily_sells 因此永不触发）、系统级强制退出（ST/停牌超限/财报不及时，system_force_exit_signal）、日回撤暂停开仓与连续止损降仓（risk_adjusted_exposure_multiplier）—— 三者只被单元测试引用，当前不产生任何真实交易动作，对应配置项等于是占位。",
+          "source": "src/backtest/strategy.py:752"
         }
       ],
       "params": [
@@ -675,27 +680,27 @@
           "source": "config/position_params.yaml:risk.stop_loss_threshold"
         },
         {
-          "name": "强制退出 ST",
+          "name": "强制退出 ST —— 配置存在但未接线，当前不生效",
           "value": true,
           "source": "config/position_params.yaml:risk.force_exit_st"
         },
         {
-          "name": "连续止损上限（次）/ 降仓后敞口",
+          "name": "连续止损上限（次）/ 降仓后敞口 —— 配置存在但未接线，当前不生效",
           "value": "3 / 0.5",
           "source": "config/position_params.yaml:risk"
         },
         {
-          "name": "停牌强制退出天数",
+          "name": "停牌强制退出天数 —— 配置存在但未接线，当前不生效",
           "value": 20,
           "source": "config/position_params.yaml:execution.suspended_days_force_exit"
         },
         {
-          "name": "日级监控开关",
+          "name": "日级监控开关（日级硬止损的总闸）",
           "value": true,
           "source": "config/position_params.yaml:daily_monitor.enabled"
         },
         {
-          "name": "低开跳过比例",
+          "name": "低开跳过比例 —— 属日级限价通道，该通道未接线，当前不生效",
           "value": 0.03,
           "source": "config/position_params.yaml:daily_monitor.low_open_skip_ratio"
         },
@@ -776,7 +781,7 @@
           "source": "DS_WORKSPACE.md:123"
         }
       ],
-      "notes": "卖出的主引擎是「掉池 4 周轮动 + 500 日新高清仓 + -15% 硬止损」三件事，基本面四类信号只补刀；档位化（Exp-F）让好基本面卖得更慢、差基本面卖得更快。"
+      "notes": "卖出的主引擎是「掉池 4 周轮动 + 500 日新高清仓 + -15% 硬止损」三件事，基本面四类信号只补刀；档位化（Exp-F）让好基本面卖得更慢、差基本面卖得更快。注意：ST/停牌强制退出、日回撤暂停开仓、连续止损降仓这三组配置在代码里没有接线点，当前不产生任何动作。"
     },
     {
       "id": "position",
@@ -825,8 +830,8 @@
         },
         {
           "name": "执行成本与滑点",
-          "detail": "佣金 0.03% 双边、印花税 0.1% 仅卖出、按成交额/日均成交额分档加滑点（0.05%/0.10%/0.08%/0.15%）。",
-          "source": "src/backtest/engine.py:74"
+          "detail": "佣金 0.03% 双边 + 印花税 0.1%（仅卖出）；滑点先按日均成交额分位定基础档（高流动性 0.05% / 中 0.10% / 低 0.20%），再按单笔成交额占日均比例追加（>2% 加 0.08%、>5% 加 0.15%）；滑点计入佣金而非 broker 自身滑点（perc=0）。",
+          "source": "src/backtest/engine.py:429"
         }
       ],
       "params": [
