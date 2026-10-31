@@ -66,6 +66,7 @@
   <div class="tab" data-p="top200">每周Top200候选池</div>
   <div class="tab" data-p="targets">周决策目标池</div>
   <div class="tab" data-p="observe">观察日志</div>
+  <div class="tab" data-p="strategy">总策略</div>
 </div>
 
 <div class="panel active" id="p-overview"><div class="cards" id="metricCards"></div></div>
@@ -134,20 +135,25 @@
 
 <div class="panel" id="p-observe"><div class="box" id="observeLog"></div></div>
 
+<div class="panel" id="p-strategy">
+  <div class="box" id="strategyFreeze"></div>
+  <div id="strategyBody"></div>
+</div>
+
 <script>
 let PM, PE, PD, PW, PF, PV, PT, OBS;
 let tempChart = null;
-let PH = null, PFL = null, PTG = null;
+let PH = null, PFL = null, PTG = null, SM = null;
 const f2 = x => x == null ? "-" : Number(x).toFixed(2);
 const cls = x => x > 0 ? "pos" : (x < 0 ? "neg" : "");
 const pct = (x, s=2) => x == null ? "-" : Number(x).toFixed(s) + "%";
 
 async function load() {
   const j = p => fetch(`data/${p}.json`).then(r => r.json());
-  [PM, PE, PD, PW, PF, PV, PT, OBS, PH, PFL, PTG] = await Promise.all(["pilot_metrics","pilot_equity","pilot_daily","pilot_weekly","pilot_four_dim","pilot_vision","pilot_top200","observation","pilot_holdings","pilot_fills","pilot_targets"].map(j));
+  [PM, PE, PD, PW, PF, PV, PT, OBS, PH, PFL, PTG, SM] = await Promise.all(["pilot_metrics","pilot_equity","pilot_daily","pilot_weekly","pilot_four_dim","pilot_vision","pilot_top200","observation","pilot_holdings","pilot_fills","pilot_targets","strategy_manual"].map(j));
   document.getElementById("pilotSub").textContent =
     `A股周级价值投资 · 试运行起始 ${PM.start_date}（初始资金 ¥${PM.initial_cash.toLocaleString()}）· 截至 ${PM.end_date} · 共 ${PM.decision_weeks} 个决策周 / ${PM.trading_days} 个交易日 · 仅展示，不做任何交易决策`;
-  renderMetrics(); renderEquity(); renderTemp("D"); renderHoldings(); renderWeekly(); renderDaily(); renderFourDim(); renderVision(); renderTop200(); renderTargets(); renderObserve();
+  renderMetrics(); renderEquity(); renderTemp("D"); renderHoldings(); renderWeekly(); renderDaily(); renderFourDim(); renderVision(); renderTop200(); renderTargets(); renderObserve(); renderStrategy();
   document.querySelectorAll("#tabbar .tab").forEach(t => t.onclick = () => {
     document.querySelectorAll("#tabbar .tab").forEach(x => x.classList.remove("active"));
     document.querySelectorAll(".panel").forEach(x => x.classList.remove("active"));
@@ -368,6 +374,86 @@ function renderTargets() {
 function renderObserve() {
   const box = document.getElementById("observeLog");
   box.innerHTML = OBS.length ? OBS.map(o => `<div class="log">${o.text}</div><hr>`).join("") : "<div class='log'>暂无观察日志</div>";
+}
+
+// 总策略：一页可审计的策略说明书（筛选 / 买入 / 卖出 / 仓位管理，每条规则带出处）
+// 数据源 config/strategy_manual.yaml → scripts/_ds_gen_strategy.py → data/strategy_manual.json
+function renderStrategy() {
+  const fzBox = document.getElementById("strategyFreeze"), body = document.getElementById("strategyBody");
+  if (!SM || !SM.sections) {
+    fzBox.innerHTML = `<div class="dimm">总策略数据未生成（运行 scripts/_ds_gen_strategy.py 生成 data/strategy_manual.json）</div>`;
+    body.innerHTML = "";
+    return;
+  }
+  const fz = SM.freeze || {}, exp = fz.experiment || {}, meta = SM.meta || {};
+  const on = exp.enabled || [], off = exp.disabled || [], items = fz.items || [], caveats = fz.caveats || [];
+
+  // ── 顶部：冻结口径摘要 ──
+  const swTag = (name, isOn) => `<span class="tag ${isOn ? "buy" : "sell"}">${esc(name)}</span>`;
+  fzBox.innerHTML =
+    `<div class="sub">冻结口径摘要 · <b style="color:var(--acc)">${esc(fz.config_name || meta.baseline || "-")}</b>`
+    + `<span class="mini">生成 ${esc(SM.generated_at || "-")} · 源 ${esc(SM.source_file || "config/strategy_manual.yaml")}</span></div>`
+    + `<div class="dimm" style="margin-bottom:8px">${esc(fz.config_note || "")}</div>`
+    + `<div class="scroll" style="max-height:none"><table><thead><tr>`
+    + `<th style="width:230px">配置项</th><th style="width:300px">当前值</th><th>出处</th>`
+    + `</tr></thead><tbody>`
+    + items.map(i => `<tr><td>${esc(i.name)}</td>`
+        + `<td style="white-space:normal;color:var(--acc)">${esc(i.value)}</td>`
+        + `<td class="dimm" style="white-space:normal">${esc(i.source)}</td></tr>`).join("")
+    + `</tbody></table></div>`
+    + `<div style="margin-top:10px">`
+    + `<span class="tag ${exp.master_enabled ? "buy" : "sell"}">实验总开关 ${exp.master_enabled ? "ON" : "OFF"}</span>`
+    + `<span class="mini">共 ${exp.total || 0} 个 key · 默认开 ${on.length} 个 / 关 ${off.length} 个</span>`
+    + `<div style="margin-top:6px">${on.map(x => swTag(x, true)).join("")}</div>`
+    + `<div style="margin-top:4px">${off.map(x => swTag(x, false)).join("")}</div>`
+    + `<div class="dimm" style="margin-top:6px">${esc(exp.note || "")}<span class="mini">${esc(exp.source || "")}</span></div>`
+    + `</div>`
+    + (caveats.length ? `<div style="margin-top:8px">${caveats.map(c => `<div class="dimm">⚠️ ${esc(c)}</div>`).join("")}</div>` : "");
+
+  // ── 四段：可折叠区块，默认只展开第一个 ──
+  const htag = st => st === "已落地" ? `<span class="tag buy">✅ 已落地</span>`
+    : st === "已否决" ? `<span class="tag sell">❌ 已否决</span>`
+    : `<span class="tag crash">🕓 ${esc(st || "讨论中")}</span>`;
+
+  body.innerHTML = SM.sections.map((s, idx) => {
+    const steps = s.steps || [], params = s.params || [], hist = s.history || [];
+    const landed = hist.filter(x => x.status === "已落地").length;
+    const rejected = hist.filter(x => x.status === "已否决").length;
+    const pending = hist.length - landed - rejected;
+
+    const stepsHtml = steps.length
+      ? `<div class="scroll"><table><thead><tr><th style="width:170px">步骤</th><th>说明</th><th style="width:230px">出处</th></tr></thead><tbody>`
+        + steps.map(x => `<tr><td>${esc(x.name)}</td><td style="white-space:normal">${esc(x.detail)}</td>`
+            + `<td class="dimm" style="white-space:normal">${esc(x.source)}</td></tr>`).join("")
+        + `</tbody></table></div>`
+      : `<div class="dimm">待补充（代码中未定位到明确实现）</div>`;
+
+    const paramsHtml = params.length
+      ? `<div class="scroll"><table><thead><tr><th style="width:270px">参数</th><th style="width:250px">当前值</th><th>配置键</th></tr></thead><tbody>`
+        + params.map(x => `<tr><td>${esc(x.name)}</td><td style="white-space:normal;color:var(--acc)">${esc(x.value)}</td>`
+            + `<td class="dimm" style="white-space:normal">${esc(x.source)}</td></tr>`).join("")
+        + `</tbody></table></div>`
+      : `<div class="dimm">暂无参数数据</div>`;
+
+    const histHtml = hist.length
+      ? `<div class="scroll"><table><thead><tr><th style="width:110px">状态</th><th style="width:230px">修正条目</th><th>结论</th><th style="width:230px">出处</th></tr></thead><tbody>`
+        + hist.map(x => `<tr><td>${htag(x.status)}</td><td style="white-space:normal">${esc(x.item)}</td>`
+            + `<td style="white-space:normal">${esc(x.conclusion)}</td>`
+            + `<td class="dimm" style="white-space:normal">${esc(x.source)}</td></tr>`).join("")
+        + `</tbody></table></div>`
+      : `<div class="dimm">暂无历史修正记录</div>`;
+
+    return `<details${idx === 0 ? " open" : ""}><summary><b>${esc(s.label)}</b>`
+      + `<span class="mini">步骤 ${steps.length} · 参数 ${params.length} · 历史 ${hist.length}`
+      + `（✅${landed} / ❌${rejected}${pending ? ` / 🕓${pending}` : ""}）</span></summary>`
+      + `<div style="margin-top:10px">`
+      + `<div class="box" style="margin-bottom:10px"><span class="dimm">时机 · </span>${esc(s.timing)}</div>`
+      + `<div class="sub" style="margin-bottom:4px">判定步骤（按执行顺序）</div>${stepsHtml}`
+      + `<div class="sub" style="margin:12px 0 4px">关键参数（config 当前实际值）</div>${paramsHtml}`
+      + `<div class="sub" style="margin:12px 0 4px">历史修正（✅已落地 / ❌已否决 / 🕓讨论中）</div>${histHtml}`
+      + `<div class="box" style="margin-top:10px"><span class="dimm">一句话 · </span>${esc(s.notes)}</div>`
+      + `</div></details>`;
+  }).join("");
 }
 load();
 </script>
