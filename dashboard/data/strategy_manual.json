@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-01 16:01:55",
+  "generated_at": "2026-11-01 16:58:42",
   "source_file": "config/strategy_manual.yaml",
   "meta": {
     "title": "总策略",
@@ -114,19 +114,24 @@
           "source": "src/screening/pipeline.py:41"
         },
         {
-          "name": "20 条一票否决",
-          "detail": "V01-V20 逐条跑；任一不过即剔除。其中 10 条有实现，10 条是占位（无外部数据源，恒通过、不判定）。",
-          "source": "src/screening/veto.py:26"
+          "name": "21 条一票否决",
+          "detail": "V01-V21 逐条跑；任一不过即剔除。其中 11 条有实现（含 2026-11-01 新增的 V21 ST/退市风险），10 条是占位（无外部数据源，恒不判定）。注意：输入数据为空时规则记为「未评估」而非「通过」，但**仍不否决** —— 二者的区别现在能在 veto 结果里看出来（unevaluated_rules）。",
+          "source": "src/screening/veto.py:31"
         },
         {
-          "name": "已实现的 10 条否决",
-          "detail": "V01 营收同比 / V02 利润同比 / V03 经营现金流 / V08 净利率 / V09 ROE / V11 负债率 / V13 成本增速差 / V16 投资收益占比 / V19 单季营收 / V20 单季利润。",
+          "name": "已实现的 11 条否决",
+          "detail": "V01 营收同比（输入恒空→未评估）/ V02 利润同比（同）/ V03 经营现金流 / V08 净利率 / V09 ROE / V11 负债率 / V13 成本增速差（输入恒空→未评估）/ V16 投资收益占比 / V19 单季营收 / V20 单季利润 / **V21 ST 与退市风险**。",
           "source": "src/screening/veto.py:38"
         },
         {
           "name": "占位未实现的 10 条否决",
-          "detail": "V04 可转债 / V05 处罚 / V06 减持 / V07 质押 / V10 异常增速 / V12 非经常性 / V14 利息 / V15 定增 / V17 关联交易 / V18 合同负债 —— 走 _todo 恒返回通过，属「系统未覆盖」，不等于「未触发」。",
-          "source": "src/screening/veto.py:64"
+          "detail": "V04 可转债 / V05 处罚 / V06 减持 / V07 质押 / V10 异常增速 / V12 非经常性 / V14 利息 / V15 定增 / V17 关联交易 / V18 合同负债 —— 走 _todo 返回未实现标记，属「系统未覆盖」，不等于「未触发」。",
+          "source": "src/screening/veto.py:96"
+        },
+        {
+          "name": "V21 ST 与退市风险（2026-11-01 新增）",
+          "detail": "按 stock_names.csv 的**当前名称**判定（*ST / ST / 退市）。该文件没有时间维度，用它反推历史等于前视，所以按规则参数 effective_from=2026-11-06 门控：早于该日的决策周 V21 记为未评估、不否决，历史回测一字不改；生效日之后才真正参与否决。长期正解是把 stock_names.csv 归档成带日期的快照表，届时历史周也能评估。",
+          "source": "config/veto_rules.yaml:120、src/screening/st_status.py:1"
         },
         {
           "name": "候选池生成",
@@ -207,7 +212,7 @@
         },
         {
           "name": "否决规则条数 / 已实现",
-          "value": "20 条配置，10 条已实现 / 10 条占位",
+          "value": "21 条配置，11 条已实现 / 10 条占位；已实现的里 V01/V02/V13 因输入恒空实际不判定",
           "source": "config/veto_rules.yaml:rules"
         },
         {
