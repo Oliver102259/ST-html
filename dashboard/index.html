@@ -149,7 +149,9 @@ const cls = x => x > 0 ? "pos" : (x < 0 ? "neg" : "");
 const pct = (x, s=2) => x == null ? "-" : Number(x).toFixed(s) + "%";
 
 async function load() {
-  const j = p => fetch(`data/${p}.json`).then(r => r.json());
+  // 数据请求加缓存穿透：GitHub Pages 与浏览器都会缓存 JSON，曾导致新页面拿到旧数据
+  // （表现：四维度页新表头配上旧 JSON → 档位全显示成"—"）。
+  const j = p => fetch(`data/${p}.json`, {cache: "no-store"}).then(r => r.json());
   [PM, PE, PD, PW, PF, PV, PT, OBS, PH, PFL, PTG, SM] = await Promise.all(["pilot_metrics","pilot_equity","pilot_daily","pilot_weekly","pilot_four_dim","pilot_vision","pilot_top200","observation","pilot_holdings","pilot_fills","pilot_targets","strategy_manual"].map(j));
   document.getElementById("pilotSub").textContent =
     `A股周级价值投资 · 试运行起始 ${PM.start_date}（初始资金 ¥${PM.initial_cash.toLocaleString()}）· 截至 ${PM.end_date} · 共 ${PM.decision_weeks} 个决策周 / ${PM.trading_days} 个交易日 · 仅展示，不做任何交易决策`;
