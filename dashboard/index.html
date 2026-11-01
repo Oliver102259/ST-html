@@ -101,8 +101,8 @@
 
 <div class="panel" id="p-fourdim">
   <div class="box">
-    <div class="sub">技术 / 预期 / 资金 / 价值：绝对分 + 行业内分位（ind），combo = 预期/资金组合命中</div>
-    <div class="scroll"><table><thead><tr><th>周</th><th>代码</th><th>名称</th><th>行业</th><th>技术(绝对/ind)</th><th>预期(绝对/ind)</th><th>资金(绝对/ind)</th><th>价值(绝对/ind)</th><th>combo</th></tr></thead><tbody id="fourBody"></tbody></table></div>
+    <div class="sub">四维度按梦大档位显示：<b>S &gt; A &gt; B &gt; C &gt; D &gt; E</b>，括号内是该维度的驱动分数。档位由他 11 期真实档位标定拟合而来（近似值，不等于他的原评）：技术面 ρ0.42、期待收益率 ρ0.25、基本面常规 ρ0.78、基本面价值 ρ0.38；带 <b>≈</b> 表示该维映射置信度偏低。<br>驱动分数依次为：技术分(0-66) / 8年价格百分位 / 单季净利同比 / PB。基本面常规用单季净利同比而非 ROE/PB —— 他的该维度"不随股价变化"，实测相关性 0.78 vs 0.13。</div>
+    <div class="scroll"><table><thead><tr><th>周</th><th>代码</th><th>名称</th><th>行业</th><th>技术面</th><th>期待收益率</th><th>基本面常规</th><th>基本面价值</th><th>combo</th></tr></thead><tbody id="fourBody"></tbody></table></div>
   </div>
 </div>
 
@@ -290,15 +290,26 @@ function renderHoldings() {
     <td>${r.weight_pct}%</td><td class="dimm">${r.first_buy||"-"}</td><td>${r.held_weeks ?? "-"}</td></tr>`).join("");
 }
 
+// 0-1 的比率转百分比字符串（注意：旧的 pct() 不乘 100，只适合已放大过的值）
+const pctv = (x, s=2) => x == null ? "-" : (Number(x) * 100).toFixed(s) + "%";
+
+function gradeCell(grade, conf, scoreText) {
+  const txt = (scoreText === null || scoreText === undefined || scoreText === "-") ? "—" : scoreText;
+  if (!grade) return `<td class="dimm">—（${txt}）</td>`;
+  const mark = conf === "low" ? "≈" : "";
+  const color = {S:"#0a7d32", A:"#1f7a4d", B:"#2a6fb0", C:"#b07a00", D:"#c05000", E:"#b3261e"}[grade] || "#666";
+  return `<td><b style="color:${color}">${mark}${grade}</b>（${txt}）</td>`;
+}
+
 function renderFourDim() {
   const body = document.getElementById("fourBody");
   body.innerHTML = PF.slice().reverse().map(r => {
     const combo = [r.expected_combo && "预期", r.fund_combo && "资金"].filter(Boolean).join("+");
     return `<tr><td>${r.week}</td><td>${r.symbol}</td><td>${r.name||"-"}</td><td>${r.industry||"-"}</td>
-      <td>${f2(r.technical_abs)} / ${pct(r.technical_ind,0)}</td>
-      <td>${f2(r.expected_abs)} / ${pct(r.expected_ind,0)}</td>
-      <td>${f2(r.fund_abs)} / ${pct(r.fund_ind,0)}</td>
-      <td>${f2(r.value_abs)} / ${pct(r.value_ind,0)}</td>
+      ${gradeCell(r.technical_grade, r.technical_grade_conf, f2(r.technical_abs))}
+      ${gradeCell(r.expected_grade, r.expected_grade_conf, pctv(r.expected_abs, 2))}
+      ${gradeCell(r.single_q_profit_yoy_grade, r.single_q_profit_yoy_grade_conf, pctv(r.single_q_profit_yoy, 1))}
+      ${gradeCell(r.value_grade, r.value_grade_conf, f2(r.value_abs))}
       <td>${combo || "-"}</td></tr>`;
   }).join("");
 }
