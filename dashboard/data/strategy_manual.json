@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-01 01:36:34",
+  "generated_at": "2026-11-01 16:01:55",
   "source_file": "config/strategy_manual.yaml",
   "meta": {
     "title": "总策略",
@@ -72,8 +72,9 @@
       "note": "默认开 7 个（A/B/C/D/X/W/F）、关 12 个；每日巡检第 ④ 步会核对「F 开、其余关键开关关」是否仍成立。"
     },
     "caveats": [
-      "PIT 口径尚未切换：生产仍按报告期对齐，「现行 39.51% vs 精确 PIT 23.61%」对外用哪个待用户决策。",
-      "该行来源：reports/TODO_PENDING.md:14 与 reports/P0_2_FREEZE_PROPOSAL.md:108"
+      "对外口径已定案（2026-10-30 用户决策）：一律用精确 PIT —— 总收益 24.82%、Sharpe 0.845、最大回撤 −10.37%、超额 11.53pp（基准 13.30%）；现行口径 39.51%/Sharpe 1.260 仅作含前视参考，不得当作可实现业绩对外表述。",
+      "数字更正（2026-11-01）：此前页面与本行记的是 23.61%/0.796/−11.75%/10.31pp，那是首版缓存的产物——当时有 15 个决策周 phase3 缺基本面块（哑周退化）。该缺陷已修复并重跑，权威数字为 24.82%/0.845/−10.37%/11.53pp（reports/P0_2_PIT_BT_longpair.md:9-14；产物 reports/longpair_pit.json，sha256 da158366…568957，2026-11-01 复跑逐字节一致）。口径决策不变，仅更正数值。",
+      "该行来源：reports/TODO_PENDING.md:45 与 reports/P0_2_FREEZE_PROPOSAL.md:108"
     ]
   },
   "sections": [
@@ -775,13 +776,19 @@
           "source": "DS_WORKSPACE.md:118"
         },
         {
-          "item": "P0-4 G-3 日级限价单当日有效",
-          "status": "已落地",
-          "conclusion": "加了 _settle_daily_sells 让限价单在其目标交易日未成交即失效；但 _place_daily_sell 至今无调用点 → 该日级确认卖出通道整体是死代码，实际只有日级硬止损在跑。",
-          "source": "DS_WORKSPACE.md:123"
+          "item": "P0-4 G-3 日级限价单当日有效 + Exp-K 延迟确认卖出通道",
+          "status": "已接线未启用",
+          "conclusion": "2026-10-30 前该通道整套是死代码（_place_daily_sell 全仓无调用点 → daily_sell_orders 恒空 → _settle_daily_sells 每次开头就 return，实际只有日级硬止损在跑）。现已接线到开关 experiment.daily_monitor_deferred.enabled（默认 false）：打开后减仓类信号（sell2／高点／基本面）不再周五收盘市价卖，而是进入监控、按 confirm_days=4／confirm_weekday=3 于周四收盘挂次日限价单，次日开盘低于限价×(1−low_open_skip_ratio=0.03) 则撤单回监控，超 max_monitor_weeks=4 回归市价卖；硬止损与 N 日新高仍立即卖出。",
+          "source": "reports/DAILY_MONITOR_WIRING_20261030.md、config/backtest_params.yaml:experiment.daily_monitor_deferred"
+        },
+        {
+          "item": "Exp-K ON 实测（189 周，同窗口同缓存）",
+          "status": "暂不启用，保留为可开启开关（2026-11-01 用户决定）",
+          "conclusion": "收益 24.82%→26.04%（+1.22pp）、Sharpe 0.845→0.884（+0.039）、盈亏比 1.177→1.336 三项改善；但最大回撤 −10.37%→−11.85%（恶化 1.49pp）、胜率 −3.34pp、换手 +5.6%、回测墙钟 +43%。用户认可该权衡，当前保持 false，需要时自行打开。打开方式：config/backtest_params.yaml 里 experiment.daily_monitor_deferred.enabled 改 true（纯回测也可用 --experiment K）。边界：该开关经 ExperimentStrategy 生效，而每日巡检的试运行回测（`backtest --start 2026-01-01 --end <最新>`，不带 `--experiment`，直接用本配置的 experiment 段）就走这个策略，工作台的持仓/成交/周决策数据均由该回测结果派生（`_ds_gen_portfolio.py` 读 `results/backtest_2026-01-01_*.json`）——所以改成 true 会实际改变周五建议，不只是历史回测数字。买入侧不受影响：`decision.parquet`（phase4 目标表）来自缓存，不由策略产出。",
+          "source": "reports/DAILY_MONITOR_WIRING_20261030.md:④、src/backtest/strategy.py:773"
         }
       ],
-      "notes": "卖出的主引擎是「掉池 4 周轮动 + 500 日新高清仓 + -15% 硬止损」三件事，基本面四类信号只补刀；档位化（Exp-F）让好基本面卖得更慢、差基本面卖得更快。注意：ST/停牌强制退出、日回撤暂停开仓、连续止损降仓这三组配置在代码里没有接线点，当前不产生任何动作。"
+      "notes": "卖出的主引擎是「掉池 4 周轮动 + 500 日新高清仓 + -15% 硬止损」三件事，基本面四类信号只补刀；档位化（Exp-F）让好基本面卖得更慢、差基本面卖得更快。注意：ST/停牌强制退出、日回撤暂停开仓、连续止损降仓这三组配置在代码里没有接线点，当前不产生任何动作；延迟确认卖出通道已接线但开关默认关闭。"
     },
     {
       "id": "position",
@@ -947,15 +954,15 @@
         },
         {
           "item": "生产口径切到精确 PIT",
-          "status": "讨论中",
-          "conclusion": "PIT 重建与全链重验已完成（短窗超额 +15.16pp → -6.39pp），但「生产是否切换」待用户批准；未切换前所有历史绩效须标注含 PIT 污染（约 55% 决策周）。",
-          "source": "reports/P0_2_FREEZE_PROPOSAL.md:108"
+          "status": "已生效",
+          "conclusion": "已切换。生产缓存为 weekly_feature_cache_pit_v2，可见性判据 actual_disclosure <= 决策截止日（缺失时回退法定披露截止日）；两处入口均带 --pit。因此所有历史绩效均已是精确 PIT 口径，不再需要\"标注含 PIT 污染\"的旧提示。",
+          "source": "scripts/_ds_pit_switch.sh:22、scripts/_ds_mengda_prep.py:169、config/backtest_params.yaml:experiment"
         },
         {
           "item": "长窗口径对照（189 周 现行 vs 精确 PIT）",
-          "status": "讨论中",
-          "conclusion": "现行 39.51%/Sharpe 1.26 → PIT 23.61%/0.80，超额 26.22pp → 10.31pp；DSR 0.286 → 0.404 仍不显著。「对外用 39.51% 还是 23.61%」待用户决策。",
-          "source": "reports/TODO_PENDING.md:14"
+          "status": "已定案",
+          "conclusion": "现行 39.51%/Sharpe 1.26 → PIT 24.82%/Sharpe 0.845，超额 26.22pp → 11.53pp；DSR 0.286 → 0.404 仍不显著。对外口径已定案为精确 PIT（2026-10-30 用户决策），39.51% 仅作含前视参考、不得当作可实现业绩对外表述。此前记录的 23.61%/0.80/10.31pp 属哑周退化缓存产物，已作废。",
+          "source": "reports/P0_2_PIT_BT_longpair.md:9-14、reports/TODO_PENDING.md:45"
         },
         {
           "item": "家族 J/Q/R/M 在干净 PIT 缓存上复验",
