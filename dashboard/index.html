@@ -92,9 +92,9 @@
 
 <div class="panel" id="p-daily">
   <div class="box">
-    <div class="sub">每日：温度/大盘得分/模式/m20/m60/崩盘标志/当日买卖动作（含原因）</div>
+    <div class="sub">每交易日：温度/大盘得分/模式/m20/m60/崩盘标志。<b>委托挂在决策日</b>（→ 后为真实成交日，正常为下一交易日开盘）；执行日行只回显「当天成交来自哪次决策」，不再把别人的委托算在自己头上</div>
     <input id="dailySearch" placeholder="筛选日期 / 代码 / 原因…">
-    <div class="scroll"><table><thead><tr><th>日期</th><th>温度</th><th>大盘得分</th><th>模式</th><th>m20</th><th>m60</th><th>崩盘</th><th>当日动作</th></tr></thead><tbody id="dailyBody"></tbody></table></div>
+    <div class="scroll"><table><thead><tr><th>日期</th><th>温度</th><th>大盘得分</th><th>模式</th><th>m20</th><th>m60</th><th>崩盘</th><th>决策日委托 / 执行日成交</th></tr></thead><tbody id="dailyBody"></tbody></table></div>
     <button class="pbtn" id="dailyMore">显示全部</button>
   </div>
 </div>
@@ -254,16 +254,32 @@ function renderDaily() {
   const body = document.getElementById("dailyBody");
   const row = d => {
     const df = (PFL && PFL.daily.find(x => x.date === d.date) || {}).failed || [];
-    const acts = d.actions.length ? d.actions.map(a =>
-      `<span class="tag ${a.action==="buy"?"buy":"sell"}">${a.action==="buy"?"买":"卖"} ${a.symbol} ${a.quantity}股 <span class="dimm">${a.reason||""}</span></span>`).join(" ") : `<span class="dimm">—</span>`;
-    return `<tr><td>${d.date}</td><td>${f2(d.temperature)}</td><td>${f2(d.temperature)}</td><td class="mode${d.mode}">${d.mode}</td><td>${pct(d.m20)}</td><td>${pct(d.m60)}</td><td>${d.crashing ? '<span class="bad">●</span>' : '<span class="dimm">—</span>'}</td><td>${acts}${df.length ? " " + failTags(df, "次日未成交") : ""}</td></tr>`;
+    const acts = (d.actions || []).length ? d.actions.map(a => {
+      const ex = a.trade_date ? `<span class="dimm">→${a.trade_date.slice(5)}</span>` : "";
+      return `<span class="tag ${a.action==="buy"?"buy":"sell"}">${a.action==="buy"?"买":"卖"} ${a.symbol} ${a.quantity}股${ex} <span class="dimm">${a.reason||""}</span></span>`;
+    }).join(" ") : `<span class="dimm">—</span>`;
+    // 执行日回显：当天成交属于哪一次决策（不再把上一决策的委托挂到当天决策上）
+    const exes = d.executions || [];
+    const echo = exes.length ? (() => {
+      const by = {};
+      exes.forEach(o => {
+        const k = String(o.decision_date || "");
+        by[k] = by[k] || { b: 0, s: 0 };
+        if (o.action === "buy") by[k].b++; else by[k].s++;
+      });
+      return Object.keys(by).sort().map(k =>
+        `<div class="dimm">↑ ${k.slice(5)} 决策成交 ${by[k].b + by[k].s} 笔（买${by[k].b}/卖${by[k].s}）</div>`).join("");
+    })() : "";
+    return `<tr><td>${d.date}</td><td>${f2(d.temperature)}</td><td>${f2(d.temperature)}</td><td class="mode${d.mode}">${d.mode}</td><td>${pct(d.m20)}</td><td>${pct(d.m60)}</td><td>${d.crashing ? '<span class="bad">●</span>' : '<span class="dimm">—</span>'}</td><td>${acts}${df.length ? " " + failTags(df, "次日未成交") : ""}${echo}</td></tr>`;
   };
   let limit = 30;
   const draw = list => body.innerHTML = list.slice(-limit).reverse().map(row).join("");
   draw(PD);
   document.getElementById("dailySearch").oninput = e => {
     const q = (e.target.value||"").trim().toLowerCase();
-    draw(q ? PD.filter(d => d.date.includes(q) || d.actions.some(a => a.symbol.includes(q) || (a.reason||"").toLowerCase().includes(q))) : PD);
+    draw(q ? PD.filter(d => d.date.includes(q)
+      || (d.actions||[]).some(a => a.symbol.includes(q) || (a.reason||"").toLowerCase().includes(q))
+      || (d.executions||[]).some(a => a.symbol.includes(q))) : PD);
   };
   document.getElementById("dailyMore").onclick = () => { limit = PD.length; draw(PD); document.getElementById("dailyMore").style.display = "none"; };
 }
