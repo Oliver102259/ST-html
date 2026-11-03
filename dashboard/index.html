@@ -92,17 +92,17 @@
 
 <div class="panel" id="p-daily">
   <div class="box">
-    <div class="sub">每交易日：温度/大盘得分/模式/m20/m60/崩盘标志。<b>委托挂在决策日</b>（→ 后为真实成交日，正常为下一交易日开盘）；执行日行只回显「当天成交来自哪次决策」，不再把别人的委托算在自己头上</div>
+    <div class="sub">每交易日：温度（=大盘得分，同一数值）/模式/m20/m60/崩盘标志。<b>委托挂在决策日</b>（→ 后为真实成交日，正常为下一交易日开盘）；执行日行只回显「当天成交来自哪次决策」，不再把别人的委托算在自己头上</div>
     <input id="dailySearch" placeholder="筛选日期 / 代码 / 原因…">
-    <div class="scroll"><table><thead><tr><th>日期</th><th>温度</th><th>大盘得分</th><th>模式</th><th>m20</th><th>m60</th><th>崩盘</th><th>决策日委托 / 执行日成交</th></tr></thead><tbody id="dailyBody"></tbody></table></div>
+    <div class="scroll"><table><thead><tr><th>日期</th><th>温度/得分</th><th>模式</th><th>m20</th><th>m60</th><th>崩盘</th><th>决策日委托 / 执行日成交</th></tr></thead><tbody id="dailyBody"></tbody></table></div>
     <button class="pbtn" id="dailyMore">显示全部</button>
   </div>
 </div>
 
 <div class="panel" id="p-fourdim">
   <div class="box">
-    <div class="sub">四维度按梦大档位显示：<b>S &gt; A &gt; B &gt; C &gt; D &gt; E</b>，括号内是该维度的驱动分数。档位由他 11 期真实档位标定拟合而来（近似值，不等于他的原评）：技术面 ρ0.42、期待收益率 ρ0.25、基本面常规 ρ0.78、基本面价值 ρ0.38；带 <b>≈</b> 表示该维映射置信度偏低。<br>驱动分数依次为：技术分(0-66) / 8年价格百分位 / 单季净利同比 / PB。基本面常规用单季净利同比而非 ROE/PB —— 他的该维度"不随股价变化"，实测相关性 0.78 vs 0.13。</div>
-    <div class="scroll"><table><thead><tr><th>周</th><th>代码</th><th>名称</th><th>行业</th><th>技术面</th><th>期待收益率</th><th>基本面常规</th><th>基本面价值</th><th>combo</th></tr></thead><tbody id="fourBody"></tbody></table></div>
+    <div class="sub">四维度按梦大档位显示：<b>S &gt; A &gt; B &gt; C &gt; D &gt; E</b>，括号内是该维度的驱动分数。档位由他 11 期真实档位标定拟合而来（近似值，不等于他的原评）：技术面 ρ0.42、期待收益率 ρ0.25、基本面常规 ρ0.78、基本面价值 ρ0.38；带 <b>≈</b> 表示该维映射置信度偏低。<br>驱动分数依次为：技术分(0-66) / 8年价格百分位 / 单季净利同比 / PB。基本面常规用单季净利同比而非 ROE/PB —— 他的该维度"不随股价变化"，实测相关性 0.78 vs 0.13。<br><b>按交易日更新</b>：每个交易日按当日实际持仓明细重算四维度（周内买卖都会改变持仓）。下方按<b>交易周</b>分组——已结束的周显示该周最后交易日收盘后持仓（通常是周五，遇假期为周四），未结束的当周显示最新交易日收盘后持仓；当周退出个股单列在表格末尾，同样给四维度（评价口径 = 该周最后一日）。</div>
+    <div id="fourWeeks"></div>
   </div>
 </div>
 
@@ -240,11 +240,12 @@ function renderWeekly() {
     const buys = w.buys.map(b => `<span class="tag buy">买 ${b.symbol} ${b.quantity}股@${b.price}</span>`).join("");
     const sells = w.sells.map(s => `<span class="tag sell">卖 ${s.symbol} ${s.quantity}股@${s.price} <span class="dimm">${s.reason}</span></span>`).join("");
     const crash = [...w.buys, ...w.sells].filter(x => (x.reason||"").includes("crash")).length ? `<span class="tag crash">crash</span>` : "";
-    const wf = (PFL && PFL.weekly.find(x => x.week === w.week) || {}).failed || [];
-    const wfTag = wf.length ? `<span class="tag bad">委托失败 ${wf.length} 笔</span>` : "";
+    const wfill = (PFL && PFL.weekly.find(x => x.week === w.week)) || {};
+    const wf = wfill.failed || [];
+    const wfTag = wf.length ? `<span class="tag bad">未成交 ${wf.length} 笔</span>` : "";
     return `<details><summary>决策周 ${w.week} · 模式 ${w.mode} · 目标 ${w.target_count} 只 · 持仓 ${w.holdings.length} 只 · 周收益 <span class="${cls(w.week_return)}">${pct(w.week_return)}</span>${crash}${wfTag}<span class="mini">买入 ${w.buys.length} 笔 / 卖出 ${w.sells.length} 笔</span></summary>
       <div style="margin-top:8px">${buys || '<span class="dimm">本周无买入</span>'}<br>${sells || '<span class="dimm">本周无卖出</span>'}</div>
-      <div style="margin-top:6px">${failTags(wf, "次日未成交") || ""}</div>
+      <div style="margin-top:6px">${failTags(wf, "未成交") || ""}</div>
       <div class="mini" style="margin-top:6px">目标池: ${w.targets.join(" ") || "-"}</div>
     </details>`;
   }).join("");
@@ -253,7 +254,10 @@ function renderWeekly() {
 function renderDaily() {
   const body = document.getElementById("dailyBody");
   const row = d => {
-    const df = (PFL && PFL.daily.find(x => x.date === d.date) || {}).failed || [];
+    const fill = (PFL && PFL.daily.find(x => x.date === d.date)) || {};
+    const df = fill.failed || [];
+    // 委托终态统计来自回测 order_log（不再靠价格反推）
+    const fillLine = fill.orders_count ? `<div class="mini">委托 ${fill.orders_count} 笔 → 成交 ${fill.filled_count || 0}${fill.failed_count ? ` · <span class="bad">未成交 ${fill.failed_count}</span>` : ""}${fill.pending_count ? ` · 待定 ${fill.pending_count}` : ""}</div>` : "";
     const acts = (d.actions || []).length ? d.actions.map(a => {
       const ex = a.trade_date ? `<span class="dimm">→${a.trade_date.slice(5)}</span>` : "";
       return `<span class="tag ${a.action==="buy"?"buy":"sell"}">${a.action==="buy"?"买":"卖"} ${a.symbol} ${a.quantity}股${ex} <span class="dimm">${a.reason||""}</span></span>`;
@@ -270,7 +274,7 @@ function renderDaily() {
       return Object.keys(by).sort().map(k =>
         `<div class="dimm">↑ ${k.slice(5)} 决策成交 ${by[k].b + by[k].s} 笔（买${by[k].b}/卖${by[k].s}）</div>`).join("");
     })() : "";
-    return `<tr><td>${d.date}</td><td>${f2(d.temperature)}</td><td>${f2(d.temperature)}</td><td class="mode${d.mode}">${d.mode}</td><td>${pct(d.m20)}</td><td>${pct(d.m60)}</td><td>${d.crashing ? '<span class="bad">●</span>' : '<span class="dimm">—</span>'}</td><td>${acts}${df.length ? " " + failTags(df, "次日未成交") : ""}${echo}</td></tr>`;
+    return `<tr><td>${d.date}</td><td>${f2(d.temperature)}</td><td class="mode${d.mode}">${d.mode}</td><td>${pct(d.m20)}</td><td>${pct(d.m60)}</td><td>${d.crashing ? '<span class="bad">●</span>' : '<span class="dimm">—</span>'}</td><td>${acts}${df.length ? " " + failTags(df, "未成交") : ""}${fillLine}${echo}</td></tr>`;
   };
   let limit = 30;
   const draw = list => body.innerHTML = list.slice(-limit).reverse().map(row).join("");
@@ -287,7 +291,7 @@ function renderDaily() {
 
 function failTags(list, kind) {
   if (!list || !list.length) return "";
-  return list.map(o => `<span class="tag bad" title="${o.note||''}">${kind}失败 ${o.symbol}@${o.price}</span>`).join(" ");
+  return list.map(o => `<span class="tag bad" title="${(o.note||"").replace(/"/g,"")}">${kind} ${o.symbol}${o.name?" "+o.name:""}@${o.price}</span>`).join(" ");
 }
 
 function renderHoldings() {
@@ -320,15 +324,37 @@ function gradeCell(grade, conf, scoreText) {
 }
 
 function renderFourDim() {
-  const body = document.getElementById("fourBody");
-  body.innerHTML = PF.slice().reverse().map(r => {
+  const box = document.getElementById("fourWeeks");
+  if (!box) return;
+  const byWeek = {};
+  PF.forEach(r => { (byWeek[r.week] = byWeek[r.week] || []).push(r); });
+  const weeks = Object.keys(byWeek).sort().reverse();
+  const head = `<table><thead><tr><th>代码</th><th>名称</th><th>行业</th><th>技术面</th><th>期待收益率</th><th>基本面常规</th><th>基本面价值</th><th>combo</th><th>退出日</th></tr></thead><tbody>`;
+  const rowOf = (r, showExit) => {
     const combo = [r.expected_combo && "预期", r.fund_combo && "资金"].filter(Boolean).join("+");
-    return `<tr><td>${r.week}</td><td>${r.symbol}</td><td>${r.name||"-"}</td><td>${r.industry||"-"}</td>
+    return `<tr><td>${r.symbol}</td><td>${r.name||"-"}</td><td>${r.industry||"-"}</td>
       ${gradeCell(r.technical_grade, r.technical_grade_conf, f2(r.technical_abs))}
       ${gradeCell(r.expected_grade, r.expected_grade_conf, pctv(r.expected_abs, 2))}
       ${gradeCell(r.single_q_profit_yoy_grade, r.single_q_profit_yoy_grade_conf, pctv(r.single_q_profit_yoy, 1))}
       ${gradeCell(r.value_grade, r.value_grade_conf, f2(r.value_abs))}
-      <td>${combo || "-"}</td></tr>`;
+      <td>${combo||"-"}</td>${showExit?`<td>${r.exit_date||"-"}</td>`:""}</tr>`;
+  };
+  box.innerHTML = weeks.map((w, i) => {
+    const rows = byWeek[w];
+    const endRows = rows.filter(r => r.as_of === w);           // 该周最后交易日的口径
+    const hold = endRows.filter(r => r.held !== false).sort((a,b)=> a.symbol < b.symbol ? -1 : 1);
+    const exit = endRows.filter(r => r.held === false).sort((a,b)=> a.symbol < b.symbol ? -1 : 1);
+    // 周内逐日持仓数（由逐日行反推），周内买卖一眼可见
+    const perDay = {};
+    rows.filter(r => r.held !== false).forEach(r => { perDay[r.as_of] = (perDay[r.as_of] || 0) + 1; });
+    const trail = Object.keys(perDay).sort().map(d => `${d.slice(5)}:${perDay[d]}`).join(" → ");
+    return `<details ${i === 0 ? "open" : ""} style="margin:10px 0">
+      <summary style="cursor:pointer;padding:6px 0;font-weight:600">交易周 ${w} · 最终持仓 ${hold.length} 只${exit.length ? ` · 当周退出 ${exit.length} 只` : ""}
+        <span class="dimm" style="font-weight:400">（周内逐日持仓数 ${trail || "-"}）</span></summary>
+      <div class="scroll">${head}${hold.map(r => rowOf(r, false)).join("")}</tbody></table></div>
+      ${exit.length ? `<div class="sub" style="margin-top:10px">当周退出（评价口径 = ${w}；退出日 = 本周内最后持有日）</div>
+      <div class="scroll">${head}${exit.map(r => rowOf(r, true)).join("")}</tbody></table></div>` : ""}
+    </details>`;
   }).join("");
 }
 
