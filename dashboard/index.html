@@ -67,6 +67,7 @@
   <div class="tab" data-p="targets">周决策目标池</div>
   <div class="tab" data-p="observe">观察日志</div>
   <div class="tab" data-p="strategy">总策略</div>
+  <div class="tab" data-p="strength">强弱指数（新）</div>
 </div>
 
 <div class="panel active" id="p-overview"><div class="cards" id="metricCards"></div></div>
@@ -141,7 +142,7 @@
 </div>
 
 <script>
-let PM, PE, PD, PW, PF, PV, PT, OBS;
+let PM, PE, PD, PW, PF, PV, PT, OBS, PSTR;
 let tempChart = null;
 let PH = null, PFL = null, PTG = null, SM = null;
 const f2 = x => x == null ? "-" : Number(x).toFixed(2);
@@ -152,7 +153,7 @@ async function load() {
   // 数据请求加缓存穿透：GitHub Pages 与浏览器都会缓存 JSON，曾导致新页面拿到旧数据
   // （表现：四维度页新表头配上旧 JSON → 档位全显示成"—"）。
   const j = p => fetch(`data/${p}.json`, {cache: "no-store"}).then(r => r.json());
-  [PM, PE, PD, PW, PF, PV, PT, OBS, PH, PFL, PTG, SM] = await Promise.all(["pilot_metrics","pilot_equity","pilot_daily","pilot_weekly","pilot_four_dim","pilot_vision","pilot_top200","observation","pilot_holdings","pilot_fills","pilot_targets","strategy_manual"].map(j));
+  [PM, PE, PD, PW, PF, PV, PT, OBS, PH, PFL, PTG, SM, PSTR] = await Promise.all(["pilot_metrics","pilot_equity","pilot_daily","pilot_weekly","pilot_four_dim","pilot_vision","pilot_top200","observation","pilot_holdings","pilot_fills","pilot_targets","strategy_manual","pilot_strength"].map(j));
   document.getElementById("pilotSub").textContent =
     `A股周级价值投资 · 试运行起始 ${PM.start_date}（初始资金 ¥${PM.initial_cash.toLocaleString()}）· 截至 ${PM.end_date} · 共 ${PM.decision_weeks} 个决策周 / ${PM.trading_days} 个交易日 · 仅展示，不做任何交易决策`;
   renderMetrics(); renderEquity(); renderTemp("D"); renderHoldings(); renderWeekly(); renderDaily(); renderFourDim(); renderVision(); renderTop200(); renderTargets(); renderObserve(); renderStrategy();
@@ -511,6 +512,77 @@ function renderStrategy() {
   }).join("");
 }
 load();
+
+// ---- 强弱指数（纯新增）----
+function renderStrength() {
+  if (!PSTR) return;
+  const snap = PSTR.snapshot || {};
+  const card = (label, value, tip) =>
+    `<div class="card"><div class="mini">${label}</div><div style="font-size:20px;font-weight:600">${value == null ? "—" : Number(value).toFixed(4)}</div><div class="mini">${tip || ""}</div></div>`;
+  const cards = document.getElementById("strengthCards");
+  if (cards) {
+    cards.innerHTML = [
+      card("MSI 大盘强弱", snap.MSI, "沪深合成 + 绝对/相对位置"),
+      card("HSI 持有股票评价", snap.HSI, `持仓 ${snap.holdings ?? "—"} 只 · 市值加权`),
+      card("TSI 目标池强弱", snap.TSI, "等权 · 按周"),
+      card("Top200SI", snap.Top200SI, "等权 · 按周"),
+    ].join("") + `<div class="mini" style="margin-top:6px">数据截至 ${snap.as_of || "—"} · 周 ${snap.week || "—"}</div>`;
+  }
+  const stateOf = (hsi, msi) => {
+    if (hsi == null || msi == null) return "—";
+    const d = hsi - msi;
+    if (d >= 0.02) return "持仓强于大盘";
+    if (d <= -0.02) return "持仓弱于大盘";
+    return "同步";
+  };
+  const db = document.getElementById("strengthDailyBody");
+  if (db) {
+    const rows = (PSTR.daily || []).slice(-30).reverse();
+    db.innerHTML = rows.map(r => {
+      const hsi = r.HSI == null ? null : Number(r.HSI);
+      const msi = r.MSI == null ? null : Number(r.MSI);
+      const d = (hsi == null || msi == null) ? null : (hsi - msi);
+      return `<tr><td>${r.date}</td><td>${msi == null ? "—" : msi.toFixed(4)}</td>` +
+        `<td>${hsi == null ? "—" : hsi.toFixed(4)}</td>` +
+        `<td class="${d == null ? "" : (d >= 0 ? "pos" : "neg")}">${d == null ? "—" : (d >= 0 ? "+" : "") + d.toFixed(4)}</td>` +
+        `<td class="dimm">${stateOf(hsi, msi)}</td></tr>`;
+    }).join("");
+  }
+  const wb = document.getElementById("strengthWeeklyBody");
+  if (wb) {
+    const rows = (PSTR.weekly || []).slice().reverse();
+    const f = v => (v == null ? "—" : Number(v).toFixed(4));
+    wb.innerHTML = rows.map(r =>
+      `<tr><td>${r.week}</td><td>${r.eval_date}</td><td>${f(r.MSI)}</td><td>${f(r.HSI)}</td>` +
+      `<td>${f(r.TSI)}</td><td>${f(r.Top200SI)}</td><td>${r.target_count ?? "—"}</td><td>${r.top200_count ?? "—"}</td></tr>`
+    ).join("");
+  }
+}
+
+
+// 强弱指数页签：独立挂载，不触碰现有 tab 分发逻辑
+document.addEventListener('click', function (e) {
+  var t = e.target && e.target.closest ? e.target.closest('[data-p="strength"]') : null;
+  if (t) setTimeout(function () { try { renderStrength(); } catch (err) {} }, 30);
+});
+var renderStrengthPending = setInterval(function () {
+  try { if (PSTR) { renderStrength(); clearInterval(renderStrengthPending); } } catch (err) {}
+}, 500);
 </script>
+<div class="panel" id="p-strength">
+  <div class="box">
+    <div class="sub"><b>我们自己的强弱指数</b>（按梦大 2026-11-04 口述的构造自建；<b style="color:var(--warn)">纯新增观察指标，不参与任何现有决策/阈值/策略</b>）。<br>
+      四个指数：<b>MSI 大盘强弱</b>（沪深合成 + 绝对位置/相对位置）、<b>HSI 持有股票评价</b>（持仓市值加权，逐日）、
+      <b>TSI 目标池强弱</b>（等权，按周）、<b>Top200SI</b>（等权，按周）。<br>
+      尺度统一为 <code>0.91 + 0.23 × 分位分数</code>，便于与梦大周图并排对照。MSI / HSI 逐日更新，TSI / Top200SI 每周更新。
+      「状态」列是两者的相对关系：MSI 高而 HSI 低＝大盘强但我们的票没跟上（我们系统最常见的状态）；HSI 高而 MSI 低＝持仓在弱市里逆势走强。</div>
+    <div class="cards" id="strengthCards"></div>
+    <div class="sub" style="margin-top:10px">最近 30 个交易日（MSI / HSI）</div>
+    <div class="scroll"><table><thead><tr><th>日期</th><th>MSI 大盘</th><th>HSI 持仓</th><th>差值(HSI−MSI)</th><th>状态</th></tr></thead><tbody id="strengthDailyBody"></tbody></table></div>
+    <div class="sub" style="margin-top:10px">按周（MSI / HSI / TSI / Top200SI）</div>
+    <div class="scroll"><table><thead><tr><th>决策周</th><th>评估日</th><th>MSI</th><th>HSI</th><th>TSI</th><th>Top200SI</th><th>目标池</th><th>Top200</th></tr></thead><tbody id="strengthWeeklyBody"></tbody></table></div>
+  </div>
+</div>
+
 </body>
 </html>
