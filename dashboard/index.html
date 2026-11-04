@@ -161,7 +161,7 @@ async function load() {
   [PM, PE, PD, PW, PF, PV, PT, OBS, PH, PFL, PTG, SM, PSTR] = await Promise.all(["pilot_metrics","pilot_equity","pilot_daily","pilot_weekly","pilot_four_dim","pilot_vision","pilot_top200","observation","pilot_holdings","pilot_fills","pilot_targets","strategy_manual","pilot_strength"].map(j));
   document.getElementById("pilotSub").textContent =
     `A股周级价值投资 · 试运行起始 ${PM.start_date}（初始资金 ¥${PM.initial_cash.toLocaleString()}）· 截至 ${PM.end_date} · 共 ${PM.decision_weeks} 个决策周 / ${PM.trading_days} 个交易日 · 仅展示，不做任何交易决策`;
-  renderMetrics(); renderEquity(); renderTemp("D"); renderHoldings(); renderWeekly(); renderDaily(); renderFourDim(); renderVision(); renderTop200(); renderTargets(); renderObserve(); renderStrategy();
+  renderMetrics(); renderEquity(); renderTemp("D"); renderHoldings(); renderWeekly(); renderDaily(); renderFourDim(); renderVision(); renderTop200(); renderTargets(); renderObserve(); renderStrategy(); renderStrength();
   document.querySelectorAll("#tabbar .tab").forEach(t => t.onclick = () => {
     document.querySelectorAll("#tabbar .tab").forEach(x => x.classList.remove("active"));
     document.querySelectorAll(".panel").forEach(x => x.classList.remove("active"));
@@ -518,21 +518,107 @@ function renderStrategy() {
 }
 load();
 
-// ---- 强弱指数（纯新增）----
+// ---- 强弱指数（纯新增）：周蜡烛 + K 线；周频指数用折线+点 ----
+let _msiChart = null, _hsiChart = null, _poolChart = null;
+function _candleDatasets(key, ohlc) {
+  const rows = ohlc.filter(r => r[key]);
+  const body = rows.map(r => {
+    const o = r[key].o, c = r[key].c;
+    return [Math.min(o, c), Math.max(o, c)];
+  });
+  const bodyColor = rows.map(r => (r[key].c >= r[key].o ? "rgba(255,107,107,.85)" : "rgba(61,220,132,.85)"));
+  const wick = rows.map(r => [r[key].l, r[key].h]);
+  const close = rows.map(r => r[key].c);
+  return { rows, body, bodyColor, wick, close };
+}
+function _drawCandle(canvasId, key, title, exists) {
+  const el = document.getElementById(canvasId);
+  if (!el || typeof Chart === "undefined") return null;
+  const { rows, body, bodyColor, wick, close } = _candleDatasets(key, exists);
+  const labels = rows.map(r => r.week.slice(5));
+  const cfg = {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        { type: "line", label: `${title} 收盘`, data: close, borderColor: "#4da3ff",
+          backgroundColor: "transparent", borderWidth: 1.8, pointRadius: 0, tension: .15, order: 1 },
+        { type: "bar", label: "实体", data: body, backgroundColor: bodyColor,
+          barPercentage: .62, categoryPercentage: .9, order: 2 },
+        { type: "bar", label: "影线", data: wick, backgroundColor: "rgba(139,152,165,.85)",
+          barPercentage: .07, categoryPercentage: .9, order: 3 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { display: false },
+        title: { display: true, text: title, color: "#dbe4ee", font: { size: 13, weight: "600" } },
+        tooltip: { callbacks: { label: c => {
+          if (c.dataset.label === "影线") { const r = rows[c.dataIndex][key]; return `低 ${r.l} / 高 ${r.h}`; }
+          if (c.dataset.label === "实体") { const r = rows[c.dataIndex][key]; return `开 ${r.o} / 收 ${r.c}`; }
+          return `${c.dataset.label}: ${c.formattedValue}`;
+        } } }
+      },
+      scales: {
+        x: { ticks: { color: "#8b98a5", maxTicksLimit: 14, font: { size: 10 } }, grid: { color: "#2a3340" } },
+        y: { beginAtZero: false, ticks: { color: "#8b98a5", font: { size: 10 } }, grid: { color: "#2a3340" } }
+      }
+    }
+  };
+  if (window[`_${canvasId}`]) { window[`_${canvasId}`].destroy(); }
+  window[`_${canvasId}`] = new Chart(el.getContext("2d"), cfg);
+  return window[`_${canvasId}`];
+}
 function renderStrength() {
   if (!PSTR) return;
   const snap = PSTR.snapshot || {};
+  const START = "2026-01-01";
+  const ohlc = (PSTR.weekly_ohlc || []).filter(r => r.week >= START);
+  const ws = (PSTR.weekly || []).filter(r => (r.week || "") >= START);
+
   const card = (label, value, tip) =>
     `<div class="card"><div class="mini">${label}</div><div style="font-size:20px;font-weight:600">${value == null ? "—" : Number(value).toFixed(4)}</div><div class="mini">${tip || ""}</div></div>`;
   const cards = document.getElementById("strengthCards");
   if (cards) {
     cards.innerHTML = [
-      card("MSI 大盘强弱", snap.MSI, "沪深合成 + 绝对/相对位置"),
-      card("HSI 持有股票评价", snap.HSI, `持仓 ${snap.holdings ?? "—"} 只 · 市值加权`),
-      card("TSI 目标池强弱", snap.TSI, "等权 · 按周"),
-      card("Top200SI", snap.Top200SI, "等权 · 按周"),
-    ].join("") + `<div class="mini" style="margin-top:6px">数据截至 ${snap.as_of || "—"} · 周 ${snap.week || "—"}</div>`;
+      card("MSI 大盘强弱", snap.MSI, "沪深合成 · 绝对/相对位置 · 逐日"),
+      card("HSI 持有股票评价", snap.HSI, `持仓 ${snap.holdings ?? "—"} 只 · 市值加权 · 逐日`),
+      card("TSI 目标池强弱", snap.TSI, "等权 · 每周"),
+      card("Top200SI", snap.Top200SI, "等权 · 每周"),
+    ].join("") + `<div class="mini" style="margin-top:6px">数据截至 ${snap.as_of || "—"} · 最新决策周 ${snap.week || "—"} · 周蜡烛 ${ohlc.length} 根</div>`;
   }
+
+  _drawCandle("msiChart", "MSI", "MSI 大盘强弱（周蜡烛 + 收盘K线）", ohlc);
+  _drawCandle("hsiChart", "HSI", "HSI 持有股票评价（周蜡烛 + 收盘K线）", ohlc.filter(r => r.HSI));
+
+  const poolEl = document.getElementById("poolChart");
+  if (poolEl && ws.length && typeof Chart !== "undefined") {
+    const labels = ws.map(r => (r.week || "").slice(5));
+    const cfg = {
+      type: "line",
+      data: { labels, datasets: [
+        { label: "TSI 目标池", data: ws.map(r => r.TSI), borderColor: "#4da3ff", backgroundColor: "rgba(77,163,255,.15)",
+          borderWidth: 1.8, pointRadius: 2, tension: .15 },
+        { label: "Top200SI", data: ws.map(r => r.Top200SI), borderColor: "#ffb454", backgroundColor: "rgba(255,180,84,.12)",
+          borderWidth: 1.8, pointRadius: 2, tension: .15 }
+      ] },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: { legend: { labels: { color: "#dbe4ee", boxWidth: 12, font: { size: 11 } } },
+          title: { display: true, text: "TSI / Top200SI（周频 · 折线 + 数据点）", color: "#dbe4ee", font: { size: 13, weight: "600" } } },
+        scales: {
+          x: { ticks: { color: "#8b98a5", maxTicksLimit: 14, font: { size: 10 } }, grid: { color: "#2a3340" } },
+          y: { beginAtZero: false, ticks: { color: "#8b98a5", font: { size: 10 } }, grid: { color: "#2a3340" } }
+        }
+      }
+    };
+    if (window._poolChart) window._poolChart.destroy();
+    window._poolChart = new Chart(poolEl.getContext("2d"), cfg);
+  }
+
   const stateOf = (hsi, msi) => {
     if (hsi == null || msi == null) return "—";
     const d = hsi - msi;
@@ -542,7 +628,7 @@ function renderStrength() {
   };
   const db = document.getElementById("strengthDailyBody");
   if (db) {
-    const rows = (PSTR.daily || []).slice(-30).reverse();
+    const rows = (PSTR.daily || []).filter(r => r.date >= START).slice(-30).reverse();
     db.innerHTML = rows.map(r => {
       const hsi = r.HSI == null ? null : Number(r.HSI);
       const msi = r.MSI == null ? null : Number(r.MSI);
@@ -555,12 +641,23 @@ function renderStrength() {
   }
   const wb = document.getElementById("strengthWeeklyBody");
   if (wb) {
-    const rows = (PSTR.weekly || []).slice().reverse();
-    const f = v => (v == null ? "—" : Number(v).toFixed(4));
-    wb.innerHTML = rows.map(r =>
-      `<tr><td>${r.week}</td><td>${r.eval_date}</td><td>${f(r.MSI)}</td><td>${f(r.HSI)}</td>` +
-      `<td>${f(r.TSI)}</td><td>${f(r.Top200SI)}</td><td>${r.target_count ?? "—"}</td><td>${r.top200_count ?? "—"}</td></tr>`
-    ).join("");
+    // weekly 的行是「决策周标签（多为周五）」，weekly_ohlc 的行是「该自然周的周一」，
+    // 两边必须先用 week_monday 对齐，否则 OHLC 和 TSI/Top200SI 永远落在两行。
+    const byWeek = {};
+    ws.forEach(r => {
+      const k = r.week_monday || r.week;
+      byWeek[k] = Object.assign(byWeek[k] || {}, r);
+    });
+    ohlc.forEach(r => { byWeek[r.week] = Object.assign(byWeek[r.week] || {}, r); });
+    const keys = Object.keys(byWeek).sort().reverse();
+    const fmt = o => (o ? `${o.o} / ${o.h} / ${o.l} / ${o.c}` : "—");
+    wb.innerHTML = keys.map(k => {
+      const r = byWeek[k];
+      const tag = (r.week && r.week !== k) ? `<span class="dimm"> · 决策周 ${r.week.slice(5)}</span>` : "";
+      return `<tr><td>${k}${tag}</td><td>${fmt(r.MSI)}</td><td>${fmt(r.HSI)}</td>` +
+        `<td>${r.TSI == null ? "—" : Number(r.TSI).toFixed(4)}</td>` +
+        `<td>${r.Top200SI == null ? "—" : Number(r.Top200SI).toFixed(4)}</td></tr>`;
+    }).join("");
   }
 }
 
@@ -598,15 +695,18 @@ var renderStrengthPending = setInterval(function () {
 <div class="panel" id="p-strength">
   <div class="box">
     <div class="sub"><b>我们自己的强弱指数</b>（按梦大 2026-11-04 口述的构造自建；<b style="color:var(--warn)">纯新增观察指标，不参与任何现有决策/阈值/策略</b>）。<br>
-      四个指数：<b>MSI 大盘强弱</b>（沪深合成 + 绝对位置/相对位置）、<b>HSI 持有股票评价</b>（持仓市值加权，逐日）、
-      <b>TSI 目标池强弱</b>（等权，按周）、<b>Top200SI</b>（等权，按周）。<br>
-      尺度统一为 <code>0.91 + 0.23 × 分位分数</code>，便于与梦大周图并排对照。MSI / HSI 逐日更新，TSI / Top200SI 每周更新。
-      「状态」列是两者的相对关系：MSI 高而 HSI 低＝大盘强但我们的票没跟上（我们系统最常见的状态）；HSI 高而 MSI 低＝持仓在弱市里逆势走强。</div>
+      <b>MSI 大盘强弱</b>（沪深合成 + 绝对位置/相对位置）与 <b>HSI 持有股票评价</b>（持仓市值加权）是<b>每日</b>更新，
+      因此按周聚合成蜡烛图（开=周内首日、收=周内末日、高/低=周内极值），叠加收盘 K 线；
+      <b>TSI 目标池强弱</b> 与 <b>Top200SI</b> 本来就是<b>每周</b>更新，用折线 + 数据点表示。<br>
+      时间范围与「六指数温度」一致：2026-01-01 起至今（HSI 从试运行建仓后才有值）。红涨绿跌。</div>
     <div class="cards" id="strengthCards"></div>
+    <div class="chartbox" style="height:230px;margin-top:10px"><canvas id="msiChart"></canvas></div>
+    <div class="chartbox" style="height:230px;margin-top:10px"><canvas id="hsiChart"></canvas></div>
+    <div class="chartbox" style="height:230px;margin-top:10px"><canvas id="poolChart"></canvas></div>
     <div class="sub" style="margin-top:10px">最近 30 个交易日（MSI / HSI）</div>
     <div class="scroll"><table><thead><tr><th>日期</th><th>MSI 大盘</th><th>HSI 持仓</th><th>差值(HSI−MSI)</th><th>状态</th></tr></thead><tbody id="strengthDailyBody"></tbody></table></div>
-    <div class="sub" style="margin-top:10px">按周（MSI / HSI / TSI / Top200SI）</div>
-    <div class="scroll"><table><thead><tr><th>决策周</th><th>评估日</th><th>MSI</th><th>HSI</th><th>TSI</th><th>Top200SI</th><th>目标池</th><th>Top200</th></tr></thead><tbody id="strengthWeeklyBody"></tbody></table></div>
+    <div class="sub" style="margin-top:10px">按周（OHLC 与四个指数）</div>
+    <div class="scroll"><table><thead><tr><th>周(周一)</th><th>MSI 开/高/低/收</th><th>HSI 开/高/低/收</th><th>TSI</th><th>Top200SI</th></tr></thead><tbody id="strengthWeeklyBody"></tbody></table></div>
   </div>
 </div>
 
