@@ -539,7 +539,9 @@ function _drawCandle(canvasId, key, title, exists) {
   const el = document.getElementById(canvasId);
   if (!el || typeof Chart === "undefined") return null;
   const { rows, body, bodyColor, wick, wickColor, close } = _candleDatasets(key, exists);
-  const labels = rows.map(r => r.week.slice(5));
+  // x 轴标签用该周最后一个交易日：未走完的当周若标周一，看起来像「指数只算到周一」
+  const labels = rows.map(r => (r.last || r.week).slice(5));
+  const weekLabel = r => (r.first && r.last ? `周 ${r.first.slice(5)} ~ ${r.last.slice(5)}` : `周 ${String(r.week).slice(5)}`);
   const cfg = {
     type: "bar",
     data: {
@@ -547,10 +549,12 @@ function _drawCandle(canvasId, key, title, exists) {
       datasets: [
         { type: "line", label: `${title} 收盘`, data: close, borderColor: "#4da3ff",
           backgroundColor: "transparent", borderWidth: 1.8, pointRadius: 0, tension: .15, order: 1 },
+        // grouped:false 是关键：Chart.js 默认把同一分类下的多个 bar 数据集左右并排，
+        // 不写这一项影线会被排到实体旁边，而不是叠在实体正中（2026-11-04 截图实测 22px 错位）。
         { type: "bar", label: "实体", data: body, backgroundColor: bodyColor,
-          barPercentage: .62, categoryPercentage: .9, order: 2 },
+          grouped: false, barPercentage: .62, categoryPercentage: .9, order: 2 },
         { type: "bar", label: "影线", data: wick, backgroundColor: wickColor,
-          barPercentage: .11, categoryPercentage: .9, order: 3 }
+          grouped: false, barPercentage: .11, categoryPercentage: .9, order: 3 }
       ]
     },
     options: {
@@ -561,6 +565,7 @@ function _drawCandle(canvasId, key, title, exists) {
         title: { display: true, text: title, color: "#dbe4ee", font: { size: 13, weight: "600" } },
         tooltip: {
           callbacks: {
+            title: items => (items.length && rows[items[0].dataIndex] ? weekLabel(rows[items[0].dataIndex]) : ""),
             // 影线并进实体一起报，不再单独占一行
             filter: c => c.dataset.label !== "影线",
             label: c => {
