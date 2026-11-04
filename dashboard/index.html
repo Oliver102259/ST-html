@@ -522,19 +522,23 @@ load();
 let _msiChart = null, _hsiChart = null, _poolChart = null;
 function _candleDatasets(key, ohlc) {
   const rows = ohlc.filter(r => r[key]);
+  const RED = "rgba(255,107,107,", GREEN = "rgba(61,220,132,";
   const body = rows.map(r => {
     const o = r[key].o, c = r[key].c;
     return [Math.min(o, c), Math.max(o, c)];
   });
-  const bodyColor = rows.map(r => (r[key].c >= r[key].o ? "rgba(255,107,107,.85)" : "rgba(61,220,132,.85)"));
+  // 上下影线不再单独画成灰线：直接取高/低全幅、与实体**完全同色**（红涨/绿跌），
+  // 只靠宽度区分（实体粗、影线细），合起来就是一根标准 K 线。
+  const bodyColor = rows.map(r => (r[key].c >= r[key].o ? RED + ".95)" : GREEN + ".95)"));
+  const wickColor = bodyColor;
   const wick = rows.map(r => [r[key].l, r[key].h]);
   const close = rows.map(r => r[key].c);
-  return { rows, body, bodyColor, wick, close };
+  return { rows, body, bodyColor, wick, wickColor, close };
 }
 function _drawCandle(canvasId, key, title, exists) {
   const el = document.getElementById(canvasId);
   if (!el || typeof Chart === "undefined") return null;
-  const { rows, body, bodyColor, wick, close } = _candleDatasets(key, exists);
+  const { rows, body, bodyColor, wick, wickColor, close } = _candleDatasets(key, exists);
   const labels = rows.map(r => r.week.slice(5));
   const cfg = {
     type: "bar",
@@ -545,8 +549,8 @@ function _drawCandle(canvasId, key, title, exists) {
           backgroundColor: "transparent", borderWidth: 1.8, pointRadius: 0, tension: .15, order: 1 },
         { type: "bar", label: "实体", data: body, backgroundColor: bodyColor,
           barPercentage: .62, categoryPercentage: .9, order: 2 },
-        { type: "bar", label: "影线", data: wick, backgroundColor: "rgba(139,152,165,.85)",
-          barPercentage: .07, categoryPercentage: .9, order: 3 }
+        { type: "bar", label: "影线", data: wick, backgroundColor: wickColor,
+          barPercentage: .11, categoryPercentage: .9, order: 3 }
       ]
     },
     options: {
@@ -555,11 +559,19 @@ function _drawCandle(canvasId, key, title, exists) {
       plugins: {
         legend: { display: false },
         title: { display: true, text: title, color: "#dbe4ee", font: { size: 13, weight: "600" } },
-        tooltip: { callbacks: { label: c => {
-          if (c.dataset.label === "影线") { const r = rows[c.dataIndex][key]; return `低 ${r.l} / 高 ${r.h}`; }
-          if (c.dataset.label === "实体") { const r = rows[c.dataIndex][key]; return `开 ${r.o} / 收 ${r.c}`; }
-          return `${c.dataset.label}: ${c.formattedValue}`;
-        } } }
+        tooltip: {
+          callbacks: {
+            // 影线并进实体一起报，不再单独占一行
+            filter: c => c.dataset.label !== "影线",
+            label: c => {
+              if (c.dataset.label === "实体") {
+                const r = rows[c.dataIndex][key];
+                return `开 ${r.o} / 高 ${r.h} / 低 ${r.l} / 收 ${r.c}`;
+              }
+              return `${c.dataset.label}: ${c.formattedValue}`;
+            }
+          }
+        }
       },
       scales: {
         x: { ticks: { color: "#8b98a5", maxTicksLimit: 14, font: { size: 10 } }, grid: { color: "#2a3340" } },
@@ -590,8 +602,8 @@ function renderStrength() {
     ].join("") + `<div class="mini" style="margin-top:6px">数据截至 ${snap.as_of || "—"} · 最新决策周 ${snap.week || "—"} · 周蜡烛 ${ohlc.length} 根</div>`;
   }
 
-  _drawCandle("msiChart", "MSI", "MSI 大盘强弱（周蜡烛 + 收盘K线）", ohlc);
-  _drawCandle("hsiChart", "HSI", "HSI 持有股票评价（周蜡烛 + 收盘K线）", ohlc.filter(r => r.HSI));
+  _drawCandle("msiChart", "MSI", "MSI 大盘强弱（周蜡烛 + 收盘折线）", ohlc);
+  _drawCandle("hsiChart", "HSI", "HSI 持有股票评价（周蜡烛 + 收盘折线）", ohlc.filter(r => r.HSI));
 
   const poolEl = document.getElementById("poolChart");
   if (poolEl && ws.length && typeof Chart !== "undefined") {
@@ -696,7 +708,7 @@ var renderStrengthPending = setInterval(function () {
   <div class="box">
     <div class="sub"><b>我们自己的强弱指数</b>（按梦大 2026-11-04 口述的构造自建；<b style="color:var(--warn)">纯新增观察指标，不参与任何现有决策/阈值/策略</b>）。<br>
       <b>MSI 大盘强弱</b>（沪深合成 + 绝对位置/相对位置）与 <b>HSI 持有股票评价</b>（持仓市值加权）是<b>每日</b>更新，
-      因此按周聚合成蜡烛图（开=周内首日、收=周内末日、高/低=周内极值），叠加收盘 K 线；
+      因此按周聚合成蜡烛图（开=周内首日、收=周内末日、高/低=周内极值；<b>上/下影线与实体同色，红涨绿跌</b>），叠加收盘折线；
       <b>TSI 目标池强弱</b> 与 <b>Top200SI</b> 本来就是<b>每周</b>更新，用折线 + 数据点表示。<br>
       时间范围与「六指数温度」一致：2026-01-01 起至今（HSI 从试运行建仓后才有值）。红涨绿跌。</div>
     <div class="cards" id="strengthCards"></div>
