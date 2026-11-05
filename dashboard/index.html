@@ -662,7 +662,12 @@ function renderStrength() {
             if (i < 0 || !ohlc[i]) return "";
             const r = ohlc[i];
             const w = (r.first && r.last) ? `周 ${r.first.slice(5)} ~ ${r.last.slice(5)}` : `周 ${String(r.week).slice(5)}`;
-            return isZeroHsi[i] ? `${w}（本周无持仓，HSI 贴图底绘制）` : w;
+            const notes = [];
+            if (isZeroHsi[i]) notes.push("本周无持仓，HSI 贴图底绘制");
+            // 2026-09-24 / 09-30 两周缺周决策缓存 → 没有目标池 → TSI/Top200SI 无法计算（不是显示问题）
+            const wr = byWk[weekKeys[i]];
+            if (!wr || wr.TSI == null) notes.push("本周无周决策缓存，TSI/Top200SI 缺失");
+            return notes.length ? `${w}（${notes.join("；")}）` : w;
           } } } },
         scales: {
           x: { ticks: { color: "#8b98a5", maxTicksLimit: 14, font: { size: 10 } }, grid: { color: "#2a3340" } },
