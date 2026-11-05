@@ -667,6 +667,7 @@ function renderStrength() {
             // 2026-09-24 / 09-30 两周缺周决策缓存 → 没有目标池 → TSI/Top200SI 无法计算（不是显示问题）
             const wr = byWk[weekKeys[i]];
             if (!wr || wr.TSI == null) notes.push("本周无周决策缓存，TSI/Top200SI 缺失");
+            else if (wr.pool_source === "gapfill") notes.push("池子为补算（只算指数，未进回测）");
             return notes.length ? `${w}（${notes.join("；")}）` : w;
           } } } },
         scales: {
@@ -714,7 +715,8 @@ function renderStrength() {
     wb.innerHTML = keys.map(k => {
       const r = byWeek[k];
       const tag = (r.week && r.week !== k) ? `<span class="dimm"> · 决策周 ${r.week.slice(5)}</span>` : "";
-      return `<tr><td>${k}${tag}</td><td>${fmt(r.MSI)}</td><td>${fmt(r.HSI)}</td>` +
+      const gap = (r.pool_source === "gapfill") ? `<span class="tag crash">补算</span>` : "";
+      return `<tr><td>${k}${tag}${gap}</td><td>${fmt(r.MSI)}</td><td>${fmt(r.HSI)}</td>` +
         `<td>${r.TSI == null ? "—" : Number(r.TSI).toFixed(4)}</td>` +
         `<td>${r.Top200SI == null ? "—" : Number(r.Top200SI).toFixed(4)}</td></tr>`;
     }).join("");
