@@ -304,7 +304,8 @@ function renderHoldings() {
   if (!PH) return;
   const sub = document.getElementById("holdSub");
   const sign = v => (v > 0 ? "+" : "");
-  sub.innerHTML = `截至 <b>${PH.as_of}</b> · 持仓 <b>${PH.position_count}</b> 只 · 总市值 <b>¥${PH.total_market_value.toLocaleString()}</b> `
+  sub.innerHTML = `<span class="dimm">本系统回测回放（虚拟资金，与梦大个人账户无关；他的持仓只在「补充视野」里以「梦大持有」标记出现）</span> · `
+    + `截至 <b>${PH.as_of}</b> · 持仓 <b>${PH.position_count}</b> 只 · 总市值 <b>¥${PH.total_market_value.toLocaleString()}</b> `
     + `· 总成本(含费) ¥${PH.total_cost_basis.toLocaleString()} · 浮动盈亏 <b class="${cls(PH.total_pnl)}">${sign(PH.total_pnl)}¥${PH.total_pnl.toLocaleString()}</b> `
     + `(<span class="${cls(PH.total_pnl)}">${sign(PH.total_pnl_pct)}${PH.total_pnl_pct}%</span>)`
     + `<div class="mini" style="margin-top:6px">成本口径：移动加权平均，买入手续费摊入成本、卖出不改成本价 · 现价取最新收盘</div>`;
