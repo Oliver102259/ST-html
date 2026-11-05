@@ -536,7 +536,7 @@ function _candleDatasets(key, ohlc) {
   const close = rows.map(r => r[key].c);
   return { rows, body, bodyColor, wick, wickColor, close };
 }
-function _drawCandle(canvasId, key, title, exists) {
+function _drawCandle(canvasId, key, title, exists, yRange) {
   const el = document.getElementById(canvasId);
   if (!el || typeof Chart === "undefined") return null;
   const { rows, body, bodyColor, wick, wickColor, close } = _candleDatasets(key, exists);
@@ -571,8 +571,10 @@ function _drawCandle(canvasId, key, title, exists) {
             filter: c => c.dataset.label !== "影线",
             label: c => {
               if (c.dataset.label === "实体") {
-                const r = rows[c.dataIndex][key];
-                return `开 ${r.o} / 高 ${r.h} / 低 ${r.l} / 收 ${r.c}`;
+                const r = rows[c.dataIndex];
+                if (r[key + "_fill"]) return "无持仓（贴图底绘制，非真实取值）";
+                const v = r[key];
+                return `开 ${v.o} / 高 ${v.h} / 低 ${v.l} / 收 ${v.c}`;
               }
               return `${c.dataset.label}: ${c.formattedValue}`;
             }
@@ -581,7 +583,9 @@ function _drawCandle(canvasId, key, title, exists) {
       },
       scales: {
         x: { ticks: { color: "#8b98a5", maxTicksLimit: 14, font: { size: 10 } }, grid: { color: "#2a3340" } },
-        y: { beginAtZero: false, ticks: { color: "#8b98a5", font: { size: 10 } }, grid: { color: "#2a3340" } }
+        y: { beginAtZero: false,
+             ...(yRange ? { min: yRange.yMin, max: yRange.yMax } : {}),
+             ticks: { color: "#8b98a5", font: { size: 10 } }, grid: { color: "#2a3340" } }
       }
     }
   };
@@ -608,10 +612,26 @@ function renderStrength() {
     ].join("") + `<div class="mini" style="margin-top:6px">数据截至 ${snap.as_of || "—"} · 最新决策周 ${snap.week || "—"} · 周蜡烛 ${ohlc.length} 根</div>`;
   }
 
-  // 三张图共用同一套周刻度（hlc 的每一周），保证上下能竖着对齐看日期。
-  // HSI 在无持仓的周已由生成端按 0 填充（CALIBER_CONVENTIONS.md R2），所以这里不再过滤。
+  // 三张图共用同一套周刻度（ohlc 的每一周），保证上下能竖着对齐看日期。
   _drawCandle("msiChart", "MSI", "MSI 大盘强弱（周蜡烛 + 收盘折线）", ohlc);
-  _drawCandle("hsiChart", "HSI", "HSI 持有股票评价（周蜡烛 + 收盘折线；无持仓=0）", ohlc);
+
+  // R2（用户 2026-11-05 选定方案 3）：无持仓的周画在图底——不塞真 0，
+  // 否则纵轴会被从 0 拉到 1.05，真实部分只剩约 9% 画高、被压成贴顶的一条。
+  // 做法：按真实 HSI 的极值定一个固定纵轴范围，把「无持仓」摆在靠近底边的一个锚点。
+  const hsiReal = ohlc.filter(r => r.HSI);
+  let hsiRange = null, hsiWeeks = ohlc;
+  if (hsiReal.length) {
+    const lo = Math.min(...hsiReal.map(r => r.HSI.l));
+    const hi = Math.max(...hsiReal.map(r => r.HSI.h));
+    const span = (hi - lo) > 1e-9 ? (hi - lo) : 0.01;
+    const yMin = lo - span * 0.15, yMax = hi + span * 0.15;
+    const anchor = yMin + (yMax - yMin) * 0.04;
+    hsiRange = { yMin, yMax };
+    hsiWeeks = ohlc.map(r => (r.HSI ? r : Object.assign({}, r, {
+      HSI: { o: anchor, h: anchor, l: anchor, c: anchor }, HSI_fill: true,
+    })));
+  }
+  _drawCandle("hsiChart", "HSI", "HSI 持有股票评价（周蜡烛 + 收盘折线；无持仓贴图底）", hsiWeeks, hsiRange);
 
   const poolEl = document.getElementById("poolChart");
   if (poolEl && ohlc.length && typeof Chart !== "undefined") {
@@ -642,7 +662,7 @@ function renderStrength() {
             if (i < 0 || !ohlc[i]) return "";
             const r = ohlc[i];
             const w = (r.first && r.last) ? `周 ${r.first.slice(5)} ~ ${r.last.slice(5)}` : `周 ${String(r.week).slice(5)}`;
-            return isZeroHsi[i] ? `${w}（本周无持仓，HSI 按 0）` : w;
+            return isZeroHsi[i] ? `${w}（本周无持仓，HSI 贴图底绘制）` : w;
           } } } },
         scales: {
           x: { ticks: { color: "#8b98a5", maxTicksLimit: 14, font: { size: 10 } }, grid: { color: "#2a3340" } },
@@ -734,7 +754,7 @@ var renderStrengthPending = setInterval(function () {
       因此按周聚合成蜡烛图（开=周内首日、收=周内末日、高/低=周内极值；<b>上/下影线与实体同色，红涨绿跌</b>），叠加收盘折线；
       <b>TSI 目标池强弱</b> 与 <b>Top200SI</b> 本来就是<b>每周</b>更新，用折线 + 数据点表示。<br>
       时间范围与「六指数温度」一致：2026-01-01 起至今。三张图<b>共用同一套周刻度</b>，可以竖着对齐看日期；
-      <b>HSI 在还没有持仓的周按 0 计入</b>（蜡烛扁平、蓝色收盘线落在 0），表格里这些周仍显示「—」。红涨绿跌。</div>
+      <b>HSI 在还没有持仓的周贴图底绘制</b>（蓝色收盘线沿底边走、不占纵轴高度，纵轴按真实 HSI 范围固定，这样真实的起伏不会被压扁），表格里这些周仍显示「—」。红涨绿跌。</div>
     <div class="cards" id="strengthCards"></div>
     <div class="chartbox" style="height:230px;margin-top:10px"><canvas id="msiChart"></canvas></div>
     <div class="chartbox" style="height:230px;margin-top:10px"><canvas id="hsiChart"></canvas></div>
