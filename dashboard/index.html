@@ -159,8 +159,9 @@ async function load() {
     .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
     .catch(err => { window.__loadFailed.push(`${p}: ${err.message}`); return null; });
   [PM, PE, PD, PW, PF, PV, PT, OBS, PH, PFL, PTG, SM, PSTR] = await Promise.all(["pilot_metrics","pilot_equity","pilot_daily","pilot_weekly","pilot_four_dim","pilot_vision","pilot_top200","observation","pilot_holdings","pilot_fills","pilot_targets","strategy_manual","pilot_strength"].map(j));
-  document.getElementById("pilotSub").textContent =
-    `A股周级价值投资 · 试运行起始 ${PM.start_date}（初始资金 ¥${PM.initial_cash.toLocaleString()}）· 截至 ${PM.end_date} · 共 ${PM.decision_weeks} 个决策周 / ${PM.trading_days} 个交易日 · 仅展示，不做任何交易决策`;
+  document.getElementById("pilotSub").innerHTML =
+    `A股周级价值投资 · 试运行起始 ${PM.start_date}（初始资金 ¥${PM.initial_cash.toLocaleString()}）· 截至 ${PM.end_date} · 共 ${PM.decision_weeks} 个决策周 / ${PM.trading_days} 个交易日 · 仅展示，不做任何交易决策`
+    + (PM.stale_note ? `<br><span class="warn">⚠ ${PM.stale_note}</span>` : "");
   renderMetrics(); renderEquity(); renderTemp("D"); renderHoldings(); renderWeekly(); renderDaily(); renderFourDim(); renderVision(); renderTop200(); renderTargets(); renderObserve(); renderStrategy(); renderStrength();
   document.querySelectorAll("#tabbar .tab").forEach(t => t.onclick = () => {
     document.querySelectorAll("#tabbar .tab").forEach(x => x.classList.remove("active"));
@@ -372,7 +373,8 @@ function renderVision() {
 
 function renderTop200() {
   document.getElementById("top200Sub").textContent =
-    `决策周 ${PT.week}（基准价日 ${PT.price_date}）· 全市场 ROE/PB 主排序前 ${PT.count}（含否决前候选，phase2 缓存口径）`;
+    `决策周 ${PT.week}（池子基准价日 ${PT.price_date}）· 全市场 ROE/PB 主排序前 ${PT.count}（含否决前候选，phase2 缓存口径）`
+    + (PT.pb_snapshot_date ? ` · PB 快照日 ${PT.pb_snapshot_date}` : "");
   const body = document.getElementById("top200Body");
   const draw = list => body.innerHTML = list.map(x => `<tr><td>${x.rank}</td><td>${x.symbol}</td><td>${x.name||"-"}</td><td>${x.industry||"-"}</td><td>${f2(x.pb)}</td><td>${pct(x.roe_pct,1)}</td><td>${pct(x.price_pct,1)}</td><td>${x.adjusted ?? "-"}</td><td>${x.base_close ?? "-"}</td><td>${x.note ? '<span class="tag md">'+x.note+'</span>' : ""}</td></tr>`).join("");
   draw(PT.pool);
