@@ -250,9 +250,13 @@ function renderWeekly() {
     const wfill = (PFL && PFL.weekly.find(x => x.week === w.week)) || {};
     const wf = wfill.failed || [];
     const wfTag = wf.length ? `<span class="tag bad">未成交 ${wf.length} 笔</span>` : "";
-    return `<details><summary>决策周 ${w.week} · 模式 ${w.mode} · 目标 ${w.target_count} 只 · 持仓 ${w.holdings.length} 只 · 周收益 <span class="${cls(w.week_return)}">${pct(w.week_return)}</span>${crash}${wfTag}<span class="mini">买入 ${w.buys.length} 笔 / 卖出 ${w.sells.length} 笔</span></summary>
+    const wpl = (wfill.orders || []).filter(o => o.state === "planned");
+    const wplTag = wpl.length ? `<span class="tag crash">待执行 ${wpl.length} 笔</span>` : "";
+    const wplLine = wpl.length ? `<div class="mini" style="margin-top:6px;color:var(--warn)">待执行（下一交易日开盘，尚未成交）：` +
+      wpl.map(o => `${o.action === "BUY" ? "买" : "卖"} ${o.symbol}${o.name ? " " + o.name : ""} ${o.quantity}股${o.reason ? ` <span class="dimm">${o.reason}</span>` : ""}`).join(" · ") + `</div>` : "";
+    return `<details><summary>决策周 ${w.week} · 模式 ${w.mode} · 目标 ${w.target_count} 只 · 持仓 ${w.holdings.length} 只 · 周收益 <span class="${cls(w.week_return)}">${pct(w.week_return)}</span>${crash}${wfTag}${wplTag}<span class="mini">已成交 买 ${w.buys.length} / 卖 ${w.sells.length}${wpl.length ? ` · 待执行 ${wpl.length}` : ""}</span></summary>
       <div style="margin-top:8px">${buys || '<span class="dimm">本周无买入</span>'}<br>${sells || '<span class="dimm">本周无卖出</span>'}</div>
-      <div style="margin-top:6px">${failTags(wf, "未成交") || ""}</div>
+      <div style="margin-top:6px">${failTags(wf, "未成交") || ""}${wplLine}</div>
       <div class="mini" style="margin-top:6px">目标池: ${w.targets.join(" ") || "-"}</div>
     </details>`;
   }).join("");
@@ -264,7 +268,11 @@ function renderDaily() {
     const fill = (PFL && PFL.daily.find(x => x.date === d.date)) || {};
     const df = fill.failed || [];
     // 委托终态统计来自回测 order_log（不再靠价格反推）
-    const fillLine = fill.orders_count ? `<div class="mini">委托 ${fill.orders_count} 笔 → 成交 ${fill.filled_count || 0}${fill.failed_count ? ` · <span class="bad">未成交 ${fill.failed_count}</span>` : ""}${fill.pending_count ? ` · 待定 ${fill.pending_count}` : ""}</div>` : "";
+    const planned = (fill.orders || []).filter(o => o.state === "planned");
+    const fillLine = fill.orders_count ? `<div class="mini">委托 ${fill.orders_count} 笔 → 成交 ${fill.filled_count || 0}${fill.failed_count ? ` · <span class="bad">未成交 ${fill.failed_count}</span>` : ""}${fill.pending_count ? ` · 待定 ${fill.pending_count}` : ""}${fill.planned_count ? ` · <span class="warn">待执行 ${fill.planned_count}</span>` : ""}</div>` : "";
+    // 2026-11-06：决策日=当日、执行日在下一交易日的委托（末日委托计划），以前完全不可见
+    const plannedLine = planned.length ? `<div class="mini" style="color:var(--warn)">待执行 ${planned.length} 笔（下一交易日开盘）：` +
+      planned.map(o => `${o.action === "BUY" ? "买" : "卖"} ${o.symbol}${o.name ? " " + o.name : ""} ${o.quantity}股${o.reason ? ` <span class="dimm">${o.reason}</span>` : ""}`).join(" · ") + `</div>` : "";
     const acts = (d.actions || []).length ? d.actions.map(a => {
       const ex = a.trade_date ? `<span class="dimm">→${a.trade_date.slice(5)}</span>` : "";
       return `<span class="tag ${a.action==="buy"?"buy":"sell"}">${a.action==="buy"?"买":"卖"} ${a.symbol} ${a.quantity}股${ex} <span class="dimm">${a.reason||""}</span></span>`;
@@ -281,7 +289,7 @@ function renderDaily() {
       return Object.keys(by).sort().map(k =>
         `<div class="dimm">↑ ${k.slice(5)} 决策成交 ${by[k].b + by[k].s} 笔（买${by[k].b}/卖${by[k].s}）</div>`).join("");
     })() : "";
-    return `<tr><td>${d.date}</td><td>${f2(d.temperature)}</td><td class="mode${d.mode}">${d.mode}</td><td>${pct(d.m20)}</td><td>${pct(d.m60)}</td><td>${d.crashing ? '<span class="bad">●</span>' : '<span class="dimm">—</span>'}</td><td>${acts}${df.length ? " " + failTags(df, "未成交") : ""}${fillLine}${echo}</td></tr>`;
+    return `<tr><td>${d.date}</td><td>${f2(d.temperature)}</td><td class="mode${d.mode}">${d.mode}</td><td>${pct(d.m20)}</td><td>${pct(d.m60)}</td><td>${d.crashing ? '<span class="bad">●</span>' : '<span class="dimm">—</span>'}</td><td>${acts}${df.length ? " " + failTags(df, "未成交") : ""}${fillLine}${plannedLine}${echo}</td></tr>`;
   };
   let limit = 30;
   const draw = list => body.innerHTML = list.slice(-limit).reverse().map(row).join("");
