@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-08 19:59:54",
+  "generated_at": "2026-11-08 21:00:28",
   "source_file": "config/strategy_manual.yaml",
   "meta": {
     "title": "总策略",
@@ -44,7 +44,7 @@
     ],
     "experiment": {
       "master_enabled": true,
-      "total": 19,
+      "total": 20,
       "enabled": [
         "failure_switch",
         "distressed_holding",
@@ -52,7 +52,8 @@
         "mismatch_control",
         "dip_buy",
         "stop_market_exempt",
-        "fundamental_tier"
+        "fundamental_tier",
+        "b3_exposure"
       ],
       "disabled": [
         "turnover_buffer",
@@ -69,7 +70,7 @@
         "stop_loss_tier"
       ],
       "source": "config/backtest_params.yaml:experiment",
-      "note": "默认开 7 个（A/B/C/D/X/W/F）、关 12 个；每日巡检第 ④ 步会核对「F 开、其余关键开关关」是否仍成立。"
+      "note": "默认开 8 个（A/B/C/D/X/W/F + b3_exposure 试运行）、关 12 个；每日巡检第 ④ 步会核对「F 开、其余关键开关关」是否仍成立。⚠️ b3_exposure 是 2026-11-08 用户批准的**试运行**（B3 超配减持阈值 30%→33%），证据在噪声地板内、生产 PIT 口径未测，回退方式：把它的 enabled 改 false。"
     },
     "caveats": [
       "对外口径已定案（2026-10-30 用户决策）：一律用精确 PIT —— 总收益 24.82%、Sharpe 0.845、最大回撤 −10.37%、超额 11.53pp（基准 13.30%）；现行口径 39.51%/Sharpe 1.260 仅作含前视参考，不得当作可实现业绩对外表述。",
@@ -360,6 +361,11 @@
           "name": "崩盘加仓（每日独立触发）",
           "detail": "指数单日跌幅触发（上证 ≤-5%、创业板/中证1000 ≤-9%）时，用冷市 65%（热市 15%）现金对高总分持仓与目标池未持仓加仓，受同样的 25%/90% 上限约束。",
           "source": "src/backtest/strategy.py:883"
+        },
+        {
+          "name": "🔬 试运行开关：B3 超配减持阈值 30% → 33%（TODO#54）",
+          "detail": "2026-11-08 用户决定先试运行，已在 config/backtest_params.yaml::experiment.b3_exposure 打开（trim_threshold 0.33）。它只影响「B3 市况下超配减持的目标仓位」， 不动冻结的 position_params.yaml（B3 目标仓位仍是 30%）。B3 周买入预算为 0， 所以买这一侧完全不受影响 —— 这个开关是**纯仓位管理**的，不属于买入逻辑。 证据强度：超长 808 周 46.85%→59.50%（+12.65pp、Sharpe 0.3285→0.3902、回撤不变）， 但相邻阈值 0.31/0.32 分别为 −0.71pp/+2.65pp，实验噪声地板约 ±13pp， 且生产 PIT 口径 0.33 尚未测过 ⇒ 属**未经证实的试运行**，不要当已验证改进引用。 回退：把 b3_exposure.enabled 改成 false。",
+          "source": "config/backtest_params.yaml::experiment.b3_exposure（reports/B3_EXPOSURE_20261108.md）"
         }
       ],
       "params": [
@@ -600,7 +606,7 @@
         },
         {
           "name": "B 模式超配减持",
-          "detail": "全仓市值超过当前模式目标仓位时，先减掉池持仓、再按目标权重升序减池内票，直到回到目标。",
+          "detail": "全仓市值超过当前模式目标仓位时，先减掉池持仓、再按目标权重升序减池内票，直到回到目标。⚠️ B3 的目标已由 experiment.b3_exposure 从 30% 覆盖为 33%（2026-11-08 试运行）；B1 85% / B2 45% 不变。",
           "source": "src/backtest/strategy.py:546"
         },
         {
@@ -812,7 +818,7 @@
         },
         {
           "name": "取目标仓位",
-          "detail": "B1 85% / B2 45% / B3 30%（全部按总资产计，不是按持仓市值）。",
+          "detail": "B1 85% / B2 45% / B3 30%（全部按总资产计，不是按持仓市值）。⚠️ 2026-11-08 起 B3 的超配减持阈值被 experiment.b3_exposure 覆盖为 33%（试运行，仅改减持阈值，不改此处的冻结值 30%）。",
           "source": "src/strategy/position.py:234"
         },
         {
