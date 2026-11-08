@@ -87,7 +87,7 @@
 <div class="panel" id="p-holdings">
   <div class="box"><div class="sub" id="holdSub">加载中…</div></div>
   <div class="box" style="margin-top:10px">
-    <div class="scroll"><table><thead><tr><th>#</th><th>代码</th><th>名称</th><th>行业</th><th>股数</th><th>成本价(含费)</th><th>现价</th><th>市值</th><th>浮动盈亏</th><th>盈亏比例</th><th>权重</th><th>建仓日</th><th>持有周</th></tr></thead><tbody id="holdBody"></tbody></table></div>
+    <div class="scroll"><table><thead><tr><th></th><th>#</th><th>代码</th><th>名称</th><th>行业</th><th>股数</th><th>成本价(含费)</th><th>现价</th><th>市值</th><th>浮动盈亏</th><th>盈亏比例</th><th>权重</th><th>建仓日</th><th>持有周</th></tr></thead><tbody id="holdBody"></tbody></table></div>
   </div>
 </div>
 
@@ -126,7 +126,7 @@
   <div class="box">
     <div class="sub" id="targetsSub">加载中…</div>
     <div class="sub" id="targetsNote"></div>
-    <div class="scroll"><table><thead><tr><th>#</th><th>代码</th><th>名称</th><th>行业</th><th>总分</th><th>基本面分</th><th>PB</th><th>价分位</th><th>ROE</th><th>池内排名</th></tr></thead><tbody id="targetsBody"></tbody></table></div>
+    <div class="scroll"><table><thead><tr><th></th><th>#</th><th>代码</th><th>名称</th><th>行业</th><th>总分</th><th>基本面分</th><th>PB</th><th>价分位</th><th>ROE</th><th>池内排名</th></tr></thead><tbody id="targetsBody"></tbody></table></div>
   </div>
   <div class="box">
     <div class="sub">每周变动 · 新进 / 掉出：原因只从缓存里的分数、池内排名、基本面与估值推导；「公告」列仅为旁证，不用来反推原因</div>
@@ -158,7 +158,7 @@ async function load() {
   const j = p => fetch(`data/${p}.json`, {cache: "no-store"})
     .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
     .catch(err => { window.__loadFailed.push(`${p}: ${err.message}`); return null; });
-  [PM, PE, PD, PW, PF, PV, PT, OBS, PH, PFL, PTG, SM, PSTR] = await Promise.all(["pilot_metrics","pilot_equity","pilot_daily","pilot_weekly","pilot_four_dim","pilot_vision","pilot_top200","observation","pilot_holdings","pilot_fills","pilot_targets","strategy_manual","pilot_strength"].map(j));
+  [PM, PE, PD, PW, PF, PV, PT, OBS, PH, PFL, PTG, SM, PSTR, PAA] = await Promise.all(["pilot_metrics","pilot_equity","pilot_daily","pilot_weekly","pilot_four_dim","pilot_vision","pilot_top200","observation","pilot_holdings","pilot_fills","pilot_targets","strategy_manual","pilot_strength","pilot_analysis"].map(j));
   document.getElementById("pilotSub").innerHTML =
     `A股周级价值投资 · 试运行起始 ${PM.start_date}（初始资金 ¥${PM.initial_cash.toLocaleString()}）· 截至 ${PM.end_date} · 共 ${PM.decision_weeks} 个决策周 / ${PM.trading_days} 个交易日 · 仅展示，不做任何交易决策`
     + (PM.stale_note ? `<br><span class="warn">⚠ ${PM.stale_note}</span>` : "");
@@ -320,6 +320,7 @@ function renderHoldings() {
     + `<div class="mini" style="margin-top:6px">成本口径：移动加权平均，买入手续费摊入成本、卖出不改成本价 · 现价取最新收盘</div>`;
   const body = document.getElementById("holdBody");
   body.innerHTML = PH.rows.map((r, i) => `<tr>
+    <td><span class="an-toggle" data-sym="${r.symbol}" title="展开个股分析图">▶</span></td>
     <td>${i+1}</td><td>${r.symbol}</td><td>${r.name||"-"}</td><td class="dimm">${r.industry||"-"}</td>
     <td>${r.qty.toLocaleString()}</td><td>${f2(r.avg_cost)}</td><td>${f2(r.close)}</td>
     <td>${r.market_value.toLocaleString()}</td>
@@ -413,6 +414,7 @@ function renderTargets() {
     `共回看 ${weeks.length} 个决策周（${weeks[0].week} → ${latest.week}）。`;
 
   document.getElementById("targetsBody").innerHTML = latest.targets.map(t => `<tr>
+    <td><span class="an-toggle" data-sym="${t.symbol}" title="展开个股分析图">▶</span></td>
     <td>${t.repr}</td><td>${t.symbol}</td><td>${esc(t.name) || "-"}</td><td>${t.industry || "-"}</td>
     <td>${t.total_score ?? "-"}</td>
     <td>${t.adjusted_score == null ? "-" : Number(t.adjusted_score).toFixed(4)}</td>
@@ -783,5 +785,167 @@ var renderStrengthPending = setInterval(function () {
   </div>
 </div>
 
+<style>
+  /* ---- #38b 个股分析图（梦大 2026-4-3/10/17 的「个股分析图」+ 2026-3-20「三类图」）---- */
+  .an-toggle { cursor:pointer; color:#8a8f98; user-select:none; display:inline-block; width:12px;
+               transition:transform .12s, color .12s; font-size:10px; }
+  .an-toggle:hover { color:#4da3ff; }
+  .an-toggle.open { color:#4da3ff; transform:rotate(90deg); }
+  .an-wrap { padding:8px 6px 12px; }
+  .an-meta { font-size:11px; color:#8a8f98; margin-bottom:8px; line-height:1.7; }
+  .an-meta b { color:#c9ced6; }
+  .an-grid { display:flex; gap:14px; flex-wrap:wrap; }
+  .an-cell { flex:1 1 340px; min-width:300px; }
+  .an-cap { font-size:11px; color:#8a8f98; margin:0 0 4px 2px; }
+  .an-box { height:190px; }
+  .an-legend { font-size:10px; color:#6d737c; margin-top:4px; }
+  .an-badge { display:inline-block; padding:1px 6px; border-radius:3px; font-size:10px; margin-left:6px; }
+</style>
+<script>
+/* ===================================================================
+   #38b 个股分析图
+   -------------------------------------------------------------------
+   来源：梦大 2026-4-3 / 4-10 / 4-17《个股分析图，建议学习》+ 2026-3-20《三类图学习》
+     · 每只股票两张图：上「考虑大盘因素」、下「不考虑大盘因素」
+     · 从左往右，一个点 = 一个交易日；100% 以下为明确低估；横轴约 2~3 年
+     · 两张图共用 y 轴
+   数据：scripts/_ds_gen_stock_analysis.py → dashboard/data/pilot_analysis.json
+   =================================================================== */
+(function () {
+  const charts = {};
+  // 注意：PAA 由主脚本 await 后才赋值，这段 IIFE 在它之前执行，
+  // 所以**不能**在这里检查 PAA（否则事件监听器永远注册不上）。改为点击时判定。
+
+  const yAxis = () => ({
+    min: PAA.y_min, max: PAA.y_max, position: "right",
+    grid: { color: "rgba(140,150,160,.12)" },
+    ticks: { font: { size: 9 }, callback: v => v + "%" },
+  });
+
+  function cfg(dates, vals, color, label) {
+    const n = dates.length;
+    return {
+      type: "line",
+      data: {
+        labels: dates,
+        datasets: [
+          { label: label, data: vals, borderColor: color, backgroundColor: color + "22",
+            borderWidth: 1.5, pointRadius: 0, tension: 0.15, fill: false },
+          { label: "100% 中枢", data: new Array(n).fill(100), borderColor: "#9aa0a6",
+            borderWidth: 1, borderDash: [5, 4], pointRadius: 0, fill: false },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { display: true, labels: { boxWidth: 9, font: { size: 9 }, filter: it => true } },
+          tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y == null ? "-" : c.parsed.y.toFixed(1) + "%"}` } },
+        },
+        scales: {
+          x: { ticks: { maxTicksLimit: 7, font: { size: 9 }, maxRotation: 0 }, grid: { display: false } },
+          y: yAxis(),
+        },
+        elements: { point: { radius: 0 } },
+      },
+    };
+  }
+
+  function metaLine(sym, d) {
+    const zoneColor = d.zone === "低估" ? "#1f7a4d" : (d.zone === "高估" ? "#b3261e" : "#b07a00");
+    const wk = d.weeks_since_peak == null ? "-" : d.weeks_since_peak.toFixed(0) + " 周";
+    const pos = d.pos_in_swing == null ? "-" : (d.pos_in_swing * 100).toFixed(0) + "%";
+    const pct = d.price_pct == null ? "-" : (d.price_pct * 100).toFixed(0) + "%";
+    const now = d.last_no_mkt == null ? "-" : d.last_no_mkt.toFixed(1) + "%";
+    const nowM = d.last_with_mkt == null ? "-" : d.last_with_mkt.toFixed(1) + "%";
+    // 用 #51a 实测的分档给出提示（距高点 ≤10 周后续 13 周 −4.60%、>60 周 +6.81%）
+    let cyc = "—";
+    if (d.weeks_since_peak != null) {
+      const w = d.weeks_since_peak;
+      cyc = w <= 10 ? "刚见顶不久（历史上这一档后续 13 周 <b>−4.6%</b>）"
+        : w <= 20 ? "调整中（−0.7%）"
+        : w <= 30 ? "接近周期长度下沿（+2.9%）"
+        : w <= 40 ? "已到典型周期长度 34~37 周（+3.6%）"
+        : w <= 60 ? "底部区域（+4.8%）"
+        : "深度底部（<b>+6.8%</b>，但样本均值靠右尾）";
+    }
+    return `当前 <b>${now}</b>（不考虑大盘） / <b>${nowM}</b>（考虑大盘）`
+      + `<span class="an-badge" style="background:${zoneColor}22;color:${zoneColor}">${d.zone}</span>`
+      + ` · 距上轮高点 <b>${wk}</b> · 波段位置 <b>${pos}</b> · 52 周价分位 <b>${pct}</b>`
+      + `<br><span style="font-size:10px">周期判读：${cyc}</span>`;
+  }
+
+  function build(sym) {
+    const d = PAA.stocks[sym];
+    const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const src = (d.source || []).join(" + ");
+    const html = `<div class="an-wrap">
+      <div class="an-meta"><b>${esc(d.name)}</b> (${sym}) · ${esc(d.industry || "-")} · 出现在：${esc(src)}
+        <br>${metaLine(sym, d)}</div>
+      <div class="an-grid">
+        <div class="an-cell"><div class="an-cap">考虑大盘因素（已剔除沪深300自身偏离）</div>
+          <div class="an-box"><canvas id="an_w_${sym}"></canvas></div></div>
+        <div class="an-cell"><div class="an-cap">不考虑大盘因素（个股 / 自身一年均线）</div>
+          <div class="an-box"><canvas id="an_n_${sym}"></canvas></div></div>
+      </div>
+      <div class="an-legend">从左往右 = 时间推进，一个点 = 一个交易日（近 ${d.dates.length} 个交易日）；虚线 100% = 自身一年中枢，以下为低估。两图共用 y 轴（${PAA.y_min}%~${PAA.y_max}%）。
+        距高点周数按 ZigZag(25%) 的最近一个高点计。</div>
+    </div>`;
+    return html;
+  }
+
+  function draw(sym) {
+    const d = PAA.stocks[sym];
+    const noEl = document.getElementById("an_n_" + sym);
+    const wEl = document.getElementById("an_w_" + sym);
+    if (noEl) charts["n_" + sym] = new Chart(noEl.getContext("2d"), cfg(d.dates, d.no_mkt, "#c9772e", "不考虑大盘"));
+    if (wEl && d.with_mkt && d.with_mkt.length)
+      charts["w_" + sym] = new Chart(wEl.getContext("2d"), cfg(d.dates, d.with_mkt, "#2a6fb0", "考虑大盘"));
+  }
+
+  function destroy(sym) {
+    ["n_", "w_"].forEach(k => { if (charts[k + sym]) { charts[k + sym].destroy(); delete charts[k + sym]; } });
+  }
+
+  window.toggleStockAnalysis = function (sym, el) {
+    const tr = el.closest("tr");
+    if (!tr) return;
+    if (typeof PAA === "undefined" || !PAA) {
+      tr.insertAdjacentHTML("afterend", `<tr class="an-row" data-for="${sym}"><td colspan="20">
+        <div class="an-wrap an-meta">分析图数据未加载（dashboard/data/pilot_analysis.json 缺失或加载失败）。<br>
+        生成命令：<code>.venv\\Scripts\\python.exe scripts\\_ds_gen_stock_analysis.py</code>，改完记得部署。</div></td></tr>`);
+      return;
+    }
+    const next = tr.nextElementSibling;
+    if (next && next.classList.contains("an-row") && next.dataset.for === sym) {
+      destroy(sym); next.remove(); el.classList.remove("open"); el.textContent = "▶"; return;
+    }
+    // 收起同表其它展开行，避免表格过长
+    let sib = tr.parentElement.firstElementChild;
+    while (sib) {
+      if (sib.classList.contains("an-row")) {
+        destroy(sib.dataset.for);
+        const oe = sib.previousElementSibling && sib.previousElementSibling.querySelector(".an-toggle");
+        if (oe) { oe.classList.remove("open"); oe.textContent = "▶"; }
+        const dead = sib; sib = sib.nextElementSibling; dead.remove(); continue;
+      }
+      sib = sib.nextElementSibling;
+    }
+    if (!PAA.stocks[sym]) {
+      tr.insertAdjacentHTML("afterend", `<tr class="an-row" data-for="${sym}"><td colspan="20">
+        <div class="an-wrap an-meta">该标的暂无分析图数据（未在持仓/目标池快照里，或历史不足 2 年）</div></td></tr>`);
+      el.classList.add("open"); el.textContent = "▶"; return;
+    }
+    tr.insertAdjacentHTML("afterend", `<tr class="an-row" data-for="${sym}"><td colspan="20">${build(sym)}</td></tr>`);
+    el.classList.add("open"); el.textContent = "▶";
+    draw(sym);
+  };
+
+  document.addEventListener("click", e => {
+    const t = e.target.closest(".an-toggle");
+    if (t) { e.preventDefault(); window.toggleStockAnalysis(t.dataset.sym, t); }
+  });
+})();
+</script>
 </body>
 </html>
