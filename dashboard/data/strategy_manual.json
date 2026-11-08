@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-08 23:47:08",
+  "generated_at": "2026-11-09 07:46:52",
   "source_file": "config/strategy_manual.yaml",
   "meta": {
     "title": "总策略",
@@ -84,6 +84,11 @@
       "label": "筛选",
       "timing": "每决策周周五收盘后跑一次完整链路（Phase 2 基本面 → Phase 3 技术分 → Phase 4 仓位）；日常由巡检链在第 ⑥ 步刷新数据与工作台页面。",
       "steps": [
+        {
+          "name": "🚫 ST / 退市股过滤（2026-11-08 新增，默认开启）",
+          "detail": "进入任何池子之前先剔除 ST / 退市股。名单由 scripts/_ds_sync_st_list.py 每个交易日 15:45 同步（计划任务 ST_STListSync；周五那次即该周最终名单）：名称以 ST / *ST / S*ST / SST 开头（317 只）或含「退」（退市整理期 155 只），合计 472 / 5927。 过滤侧只取「决策日当日或之前最近的一份名单快照」——今天的决策立刻剔除；历史回测 （早于任何快照）拿不到名单、不剔股（不前视、口径与改造前逐字节一致）；快照逐日积累 之后，未来的回测会自动变成 PIT 正确。剔除范围＝决策表与技术池，所以目标池 / Top200 / 四维表都不会再出现 ST 股；已持仓的不强卖，靠出池 4 周轮动逐步退出。 开关：config/st_filter.yaml（新建的独立配置，不动任何冻结配置）。",
+          "source": "src/strategy/st_filter.py；scripts/_ds_sync_st_list.py；data/strategy/st_list/"
+        },
         {
           "name": "PB 估值快照构建",
           "detail": "用 as_of 之前的行情与财报重建当日 PB 快照，作为 ROE/PB 主排序的分母。",
