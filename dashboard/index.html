@@ -86,6 +86,7 @@
 
 <div class="panel" id="p-holdings">
   <div class="box"><div class="sub" id="holdSub">加载中…</div></div>
+  <div class="box" id="cycleBox" style="margin-top:10px;display:none"></div>
   <div class="box" style="margin-top:10px">
     <div class="scroll"><table><thead><tr><th></th><th>#</th><th>代码</th><th>名称</th><th>行业</th><th>股数</th><th>成本价(含费)</th><th>现价</th><th>市值</th><th>浮动盈亏</th><th>盈亏比例</th><th>权重</th><th>建仓日</th><th>持有周</th></tr></thead><tbody id="holdBody"></tbody></table></div>
   </div>
@@ -158,7 +159,7 @@ async function load() {
   const j = p => fetch(`data/${p}.json`, {cache: "no-store"})
     .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
     .catch(err => { window.__loadFailed.push(`${p}: ${err.message}`); return null; });
-  [PM, PE, PD, PW, PF, PV, PT, OBS, PH, PFL, PTG, SM, PSTR, PAA] = await Promise.all(["pilot_metrics","pilot_equity","pilot_daily","pilot_weekly","pilot_four_dim","pilot_vision","pilot_top200","observation","pilot_holdings","pilot_fills","pilot_targets","strategy_manual","pilot_strength","pilot_analysis"].map(j));
+  [PM, PE, PD, PW, PF, PV, PT, OBS, PH, PFL, PTG, SM, PSTR, PAA, PCY] = await Promise.all(["pilot_metrics","pilot_equity","pilot_daily","pilot_weekly","pilot_four_dim","pilot_vision","pilot_top200","observation","pilot_holdings","pilot_fills","pilot_targets","strategy_manual","pilot_strength","pilot_analysis","pilot_cycles"].map(j));
   document.getElementById("pilotSub").innerHTML =
     `A股周级价值投资 · 试运行起始 ${PM.start_date}（初始资金 ¥${PM.initial_cash.toLocaleString()}）· 截至 ${PM.end_date} · 共 ${PM.decision_weeks} 个决策周 / ${PM.trading_days} 个交易日 · 仅展示，不做任何交易决策`
     + (PM.stale_note ? `<br><span class="warn">⚠ ${PM.stale_note}</span>` : "");
@@ -327,6 +328,37 @@ function renderHoldings() {
     <td class="${cls(r.pnl)}">${sign(r.pnl)}${r.pnl.toLocaleString()}</td>
     <td class="${cls(r.pnl)}">${sign(r.pnl_pct)}${r.pnl_pct}%</td>
     <td>${r.weight_pct}%</td><td class="dimm">${r.first_buy||"-"}</td><td>${r.held_weeks ?? "-"}</td></tr>`).join("");
+  renderCycleBox();
+}
+
+/* #51a E1/E2：持仓的「周期位置」分布 + 新进池周期预警
+   依据 reports/CYCLE_ATTR_20261108.md：距上轮高点 ≤10 周后续 13 周 -4.60%（胜率 38.6%），
+   >60 周 +6.81%（57.3%），完全单调；52 周价格分位几乎无区分力。变量严格 PIT。 */
+function renderCycleBox() {
+  const box = document.getElementById("cycleBox");
+  if (!box) return;
+  if (typeof PCY === "undefined" || !PCY || !PCY.buckets) { box.style.display = "none"; return; }
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const colors = { "≤10周": "#b3261e", "11-20周": "#c05000", "21-30周": "#b07a00",
+                   "31-40周": "#2a6fb0", "41-60周": "#1f7a4d", ">60周": "#0a7d32", "无数据": "#888" };
+  const bars = PCY.buckets.filter(b => b.n > 0).map(b => {
+    const c = colors[b.label] || "#888";
+    return `<div style="display:flex;align-items:center;gap:6px;margin:3px 0">
+      <span style="width:56px;font-size:11px;color:${c}">${b.label}</span>
+      <span style="flex:1;background:${c}22;height:12px;border-radius:2px;position:relative">
+        <span style="position:absolute;left:0;top:0;bottom:0;width:${Math.min(b.pct, 100)}%;background:${c};border-radius:2px"></span></span>
+      <span style="width:96px;font-size:11px;text-align:right">${b.n} 只 / ${b.pct}%</span></div>`;
+  }).join("");
+  const w = PCY.new_entries_warn || {};
+  const warnHtml = (w.count > 0)
+    ? `<div class="mini" style="margin-top:8px;color:#c05000">⚠ ${esc(w.note)}：${(w.detail || []).map(d => `${esc(d.symbol)} ${esc(d.name || "")}(${d.weeks_since_peak}周)`).join("、")}</div>`
+    : `<div class="mini" style="margin-top:8px">${esc(w.note || "")}</div>`;
+  box.style.display = "";
+  box.innerHTML = `<div class="sub"><b>持仓周期位置分布</b>
+      <span class="mini">距上轮高点周数（严格 PIT，ZigZag 25%）· 中位 ${PCY.summary.median_weeks_since_peak} 周 · ${PCY.summary.holdings} 只 / ¥${(PCY.summary.total_market_value || 0).toLocaleString()}</span></div>
+    <div style="margin-top:8px">${bars}</div>
+    <div class="mini" style="margin-top:6px">历史分档（#51a 实测 13,430 个持仓-周，13 周后续收益）：≤10周 <b>−4.60%</b>（胜率 38.6%）· 11-20周 −0.68% · 21-30周 +2.89% · 31-40周 +3.64% · 41-60周 +4.80% · &gt;60周 <b>+6.81%</b>（57.3%）</div>
+    ${warnHtml}`;
 }
 
 // 0-1 的比率转百分比字符串（注意：旧的 pct() 不乘 100，只适合已放大过的值）
