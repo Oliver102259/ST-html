@@ -478,8 +478,23 @@ function renderTargets() {
 }
 
 function renderObserve() {
+  // 2026-11-16：观察日志接入每日链（scripts/_ds_gen_observation.py → data/observation.json）。
+  // 数据多了一层结构化字段（date / anomaly_count / anomalies），这里加日期标题与异常徽标，
+  // 并把最新一篇放最前；正文仍用 esc() 转义后按 pre-wrap 原样显示，避免日志里的
+  // JSON（如指数补拉结果）被当成 HTML 解析。
   const box = document.getElementById("observeLog");
-  box.innerHTML = OBS.length ? OBS.map(o => `<div class="log">${o.text}</div><hr>`).join("") : "<div class='log'>暂无观察日志</div>";
+  if (!Array.isArray(OBS) || !OBS.length) { box.innerHTML = "<div class='log'>暂无观察日志</div>"; return; }
+  box.innerHTML = OBS.slice().reverse().map(o => {
+    const an = Array.isArray(o.anomalies) ? o.anomalies : [];
+    const badge = an.length
+      ? `<span class="tag sell">异常 ${an.length} 项</span>`
+      : `<span class="tag buy">无异常</span>`;
+    const body = String(o.text || "").replace(/^#\s*观察日志[^\n]*\n/, "").trim();
+    return `<div style="margin-bottom:10px">`
+      + `<div style="margin-bottom:6px"><b style="color:var(--acc);font-size:13px">${esc(o.date || o.file || "")}</b> ${badge}`
+      + `<span class="mini">${esc(o.file || "")}</span></div>`
+      + `<div class="log">${esc(body)}</div></div>`;
+  }).join("<hr>");
 }
 
 // 总策略：一页可审计的策略说明书（筛选 / 买入 / 卖出 / 仓位管理，每条规则带出处）
