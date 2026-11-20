@@ -437,10 +437,12 @@ function renderTargets() {
 
   // 口径说明：目标池与 Top200 不是同一套排序；否决覆盖范围也要讲清，避免把「未覆盖」读成「未触发」
   const notImpl = (v.placeholder || []), blocked = (v.blocked_by_missing_data || []);
+  const sched = Object.entries(v.scheduled || {});
   note.innerHTML =
     `目标池 = phase3 技术池（已过否决）内按 <b>total_score</b> 降序取前 15。<b>与「每周Top200候选池」不是同一套排序</b>：` +
     `Top200 是 phase2 前 200 按基本面 adjusted_score 排序（否决前），目标池是否决后按 total_score 取前 15。<br>` +
-    `否决只覆盖财务类（已实现：${(v.evaluable || []).join(" / ") || "-"}）；` +
+    `回看周内实际在判定的否决规则只覆盖财务类（${(v.evaluable || []).join(" / ") || "-"}）；` +
+    (sched.length ? `公告类已按生效日启用、但回看周都早于生效日故不参与判定：${sched.map(([k, d]) => `${k}(${d})`).join(" / ")}；` : "") +
     (notImpl.length ? `未实现（无外部数据源，配置占位）：${notImpl.join(" / ")} —— 属「系统未覆盖该维度」，不等于「未触发」；` : "") +
     (blocked.length ? `已实现但缓存同比字段全空、本次未真正判定：${blocked.join(" / ")}；` : "") +
     `共回看 ${weeks.length} 个决策周（${weeks[0].week} → ${latest.week}）。`;
