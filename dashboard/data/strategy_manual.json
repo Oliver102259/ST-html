@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-21 14:40:46",
+  "generated_at": "2026-11-21 16:07:30",
   "source_file": "config/strategy_manual.yaml",
   "meta": {
     "title": "总策略",
@@ -161,8 +161,13 @@
         },
         {
           "name": "排序键与 C' 极端风险守卫",
-          "detail": "缓存构建时先按 pb_guard_quantile=0.9 丢掉池内 PB 分位最高的 10%，再按 total_score 降序排名；PB 只做硬过滤，不做排序偏好。",
-          "source": "src/backtest/feature_cache.py:209"
+          "detail": "缓存构建时先按 pb_guard_quantile=0.9 丢掉池内 PB 分位最高的 10%，再取前 15。**取前 15 的排序键是 adjusted_score（Phase 2 基本面 ROE/PB 主排序分）；技术面 total_score 只决定 confidence 分档、进而影响权重大小，不决定选谁**（2026-11-21 起，口径变更带生效日）。此前「只跑 Phase 4」的构建路径把 phase3 文件序（total_score 降序）原样喂给权重函数，等于让技术面成了第二道硬排序，与 evaluate() 的口径不一致 —— 同一决策日会选出只重合约 3/15 的两份名单。PB 只做硬过滤，不做排序偏好。",
+          "source": "src/strategy/position.py:PHASE4_RANK_EFFECTIVE_FROM、reports/RANK_SPLIT_20261121.md"
+        },
+        {
+          "name": "Phase 4 取前 N 的排序键（2026-11-21 采纳）",
+          "detail": "两条构建路径（evaluate() 一次性 2→3→4、build_phase4_only() 只跑 Phase 4）与线上 CLI 现在共用 order_candidates_for_phase4()，默认按 adjusted_score 降序；生效日 2026-11-21 之前保持历史行序，所以重建历史缓存与既有缓存逐位一致（已实测 15/15、max|Δweight|=0）。实测（同池同日只换排序键，766 周）：技术面 −0.60pp / 基本面 +1.43pp，Δ=+2.03pp（t=5.90）；组合级臂 Δ公平 +86.13pp、逐年胜 13/16（p=0.021）、FIT +24.22 / VALID +53.17。代价：换手 5.61→10.89、平均仓位 0.366→0.466、VALID 段回撤变差 4.72pp。",
+          "source": "src/strategy/position.py:order_candidates_for_phase4、reports/RANK_SPLIT_20261121.md"
         }
       ],
       "params": [
