@@ -447,6 +447,21 @@ function renderTargets() {
     (blocked.length ? `已实现但缓存同比字段全空、本次未真正判定：${blocked.join(" / ")}；` : "") +
     `共回看 ${weeks.length} 个决策周（${weeks[0].week} → ${latest.week}）。`;
 
+  // 新口径预览：说明「已启用但本页为何不变」以及「若已生效会拦谁」，避免要么以为没生效、要么以为历史被改写
+  const pv = PTG.veto_preview || {};
+  if (pv.available) {
+    const tb = pv.targets_blocked || [];
+    const firedTxt = Object.entries(pv.phase2_fired || {}).map(([k, v]) => `${k} ${v}`).join(" / ");
+    note.innerHTML += `<br><b>新口径预览</b>（${(pv.rules || []).join(" / ")} 自 ${pv.effective_from} 启用、按生效日门控）：` +
+      `本页决策周 ${pv.week} 早于生效日，故目标池仍是旧口径、逐位未变；` +
+      `把决策日假设为 ${pv.as_of_assumed} 重跑同一份候选表 → phase2 前 ${pv.phase2_total} 只中拦掉 <b>${pv.phase2_blocked}</b> 只` +
+      (firedTxt ? `（${firedTxt}）` : "") +
+      (tb.length
+        ? `；本周目标池会被拦掉 <b>${tb.length}</b> 只：${tb.map(x => `${x.symbol} ${esc(x.name) || "-"}`).join("、")}。`
+        : `；本周目标池无一只被拦。`) +
+      ` 真实生效从生效日之后的第一个决策周缓存开始。`;
+  }
+
   document.getElementById("targetsBody").innerHTML = latest.targets.map(t => `<tr>
     <td><span class="an-toggle" data-sym="${t.symbol}" title="展开个股分析图">▶</span></td>
     <td>${t.repr}</td><td>${t.symbol}</td><td>${esc(t.name) || "-"}</td><td>${t.industry || "-"}</td>
