@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-21 16:07:30",
+  "generated_at": "2026-11-21 17:25:08",
   "source_file": "config/strategy_manual.yaml",
   "meta": {
     "title": "总策略",
@@ -32,9 +32,19 @@
         "source": "reports/experiment_family_archive_20260817.md:5"
       },
       {
-        "name": "超长窗总收益（2011→2026）",
-        "value": "56.91%",
-        "source": "reports/experiment_family_archive_20260817.md:5"
+        "name": "超长窗总收益（2011-01-01→2026-06-26，精确 PIT）",
+        "value": "9.00%（Sharpe 0.109 / 回撤 −23.38% / 1575 笔；同期基准大涨，超额 −16.72pp）",
+        "source": "data/backtest/results/backtest_2011-01-01_2026-06-26_pitlong_v8base.json（口径 pit_long，792 周）"
+      },
+      {
+        "name": "超长窗总收益·旧口径（已作废，勿用）",
+        "value": "56.91% —— 2026-08-17 实验归档的 survivor 非 PIT 口径，与精确 PIT 差 47.9pp，不得对外表述",
+        "source": "reports/experiment_family_archive_20260817.md:5（仅作历史留档）"
+      },
+      {
+        "name": "采纳 rankF 后的同口径反事实（全程基本面排序）",
+        "value": "101.32%（Sharpe 0.490 / 回撤 −22.94% / 超额 +69.41pp）—— 反事实，不是上线后的实际成绩；实际上线自 2026-11-27 起，历史不重算",
+        "source": "data/backtest/results/backtest_2011-01-01_2026-06-26_pitlong_rankF.json、reports/RANK_SPLIT_20261121.md"
       },
       {
         "name": "单票 / 总仓上限",
