@@ -462,6 +462,14 @@ function renderTargets() {
       ` 真实生效从生效日之后的第一个决策周缓存开始。`;
   }
 
+  // 口径变更点：试点期归因用。跨这些日期的对比必须标注口径，否则数字不可比
+  const cc = PTG.caliber_changes || [];
+  if (cc.length) {
+    note.innerHTML += `<br><b>⚠ 口径变更点</b>：` +
+      cc.map(x => `${x.date}【${x.scope}】${esc(x.what)}<span class="mini">（${esc(x.affects)}）</span>`).join("；") +
+      `。跨这些日期比较收益/胜率必须标注口径。`;
+  }
+
   document.getElementById("targetsBody").innerHTML = latest.targets.map(t => `<tr>
     <td><span class="an-toggle" data-sym="${t.symbol}" title="展开个股分析图">▶</span></td>
     <td>${t.repr}</td><td>${t.symbol}</td><td>${esc(t.name) || "-"}</td><td>${t.industry || "-"}</td>
