@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-22 00:34:29",
+  "generated_at": "2026-11-22 13:32:32",
   "source_file": "config/strategy_manual.yaml",
   "meta": {
     "title": "总策略",
@@ -48,7 +48,7 @@
       },
       {
         "name": "单票 / 总仓上限",
-        "value": "单票 25% / 总仓 90% / 行业 30% / 最多 15 只",
+        "value": "单票 25% / 总仓 90% / 行业 30% / 最多 **30 只**（2026-11-23 起；此前 15 只。起因：实盘试点实际持 28 只，名义红线在实况里不成立）",
         "source": "config/position_params.yaml:limits"
       }
     ],
