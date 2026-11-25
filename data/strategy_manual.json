@@ -1,0 +1,1018 @@
+{
+  "generated_at": "2026-11-25 18:55:15",
+  "source_file": "config/strategy_manual.yaml",
+  "meta": {
+    "title": "总策略",
+    "baseline": "v16-R",
+    "updated": "2026-11-21",
+    "intro": "一页可审计的策略说明书：四段（筛选 / 买入 / 卖出 / 仓位管理）说明系统每天、每周到底按什么规则动钱。"
+  },
+  "freeze": {
+    "config_name": "v16-R",
+    "config_note": "Phase 2/3/4 配置文件一律只读；可动的只有 Phase 5 runtime 与 experiment 开关。",
+    "items": [
+      {
+        "name": "冻结配置名",
+        "value": "v16-R",
+        "source": "reports/experiment_family_archive_20260817.md:5"
+      },
+      {
+        "name": "目标仓位（B1 / B2 / B3）",
+        "value": "B1 85% / B2 45% / B3 30%",
+        "source": "config/position_params.yaml:market_position.mode_target_exposure"
+      },
+      {
+        "name": "周买入预算（B1 / B2 / B3）",
+        "value": "B1 70% / B2 25% / B3 0%",
+        "source": "config/position_params.yaml:weekly_purchase"
+      },
+      {
+        "name": "短窗总收益（2023-01-06→2026-06-26）",
+        "value": "37.50%（P0-4 执行语义修复后 37.45%）",
+        "source": "reports/experiment_family_archive_20260817.md:5"
+      },
+      {
+        "name": "超长窗总收益（2011-01-01→2026-06-26，精确 PIT）",
+        "value": "9.00%（Sharpe 0.109 / 回撤 −23.38% / 1575 笔；同期基准大涨，超额 −16.72pp）",
+        "source": "data/backtest/results/backtest_2011-01-01_2026-06-26_pitlong_v8base.json（口径 pit_long，792 周）"
+      },
+      {
+        "name": "超长窗总收益·旧口径（已作废，勿用）",
+        "value": "56.91% —— 2026-08-17 实验归档的 survivor 非 PIT 口径，与精确 PIT 差 47.9pp，不得对外表述",
+        "source": "reports/experiment_family_archive_20260817.md:5（仅作历史留档）"
+      },
+      {
+        "name": "采纳 rankF 后的同口径反事实（全程基本面排序）",
+        "value": "101.32%（Sharpe 0.490 / 回撤 −22.94% / 超额 +69.41pp）—— 反事实，不是上线后的实际成绩；实际上线自 2026-11-27 起，历史不重算",
+        "source": "data/backtest/results/backtest_2011-01-01_2026-06-26_pitlong_rankF.json、reports/RANK_SPLIT_20261121.md"
+      },
+      {
+        "name": "单票 / 总仓上限",
+        "value": "单票 25% / 总仓 90% / 行业 30% / 最多 **30 只**（2026-11-23 起；此前 15 只。起因：实盘试点实际持 28 只，名义红线在实况里不成立）",
+        "source": "config/position_params.yaml:limits"
+      }
+    ],
+    "experiment": {
+      "master_enabled": true,
+      "total": 20,
+      "enabled": [
+        "failure_switch",
+        "distressed_holding",
+        "repaired_sell",
+        "mismatch_control",
+        "dip_buy",
+        "stop_market_exempt",
+        "fundamental_tier",
+        "b3_exposure"
+      ],
+      "disabled": [
+        "turnover_buffer",
+        "percentile_demote",
+        "b2_utilization",
+        "rotation_quality_hold",
+        "seasonal_pool",
+        "strength_feedback",
+        "dynamic_positioning",
+        "mode_trim_pool_only",
+        "crash_buy_cold_cash",
+        "crash_buy_veto_protect",
+        "profit_accel",
+        "stop_loss_tier"
+      ],
+      "source": "config/backtest_params.yaml:experiment",
+      "note": "默认开 8 个（A/B/C/D/X/W/F + b3_exposure 试运行）、关 12 个；每日巡检第 ④ 步会核对「F 开、其余关键开关关」是否仍成立。⚠️ b3_exposure 是 2026-11-08 用户批准的**试运行**（B3 超配减持阈值 30%→33%），证据在噪声地板内、生产 PIT 口径未测，回退方式：把它的 enabled 改 false。"
+    },
+    "caveats": [
+      "对外口径已定案（2026-10-30 用户决策）：一律用精确 PIT —— 总收益 24.82%、Sharpe 0.845、最大回撤 −10.37%、超额 11.53pp（基准 13.30%）；现行口径 39.51%/Sharpe 1.260 仅作含前视参考，不得当作可实现业绩对外表述。",
+      "数字更正（2026-11-01）：此前页面与本行记的是 23.61%/0.796/−11.75%/10.31pp，那是首版缓存的产物——当时有 15 个决策周 phase3 缺基本面块（哑周退化）。该缺陷已修复并重跑，权威数字为 24.82%/0.845/−10.37%/11.53pp（reports/P0_2_PIT_BT_longpair.md:9-14；产物 reports/longpair_pit.json，sha256 da158366…568957，2026-11-01 复跑逐字节一致）。口径决策不变，仅更正数值。",
+      "该行来源：reports/TODO_PENDING.md:45 与 reports/P0_2_FREEZE_PROPOSAL.md:108"
+    ]
+  },
+  "sections": [
+    {
+      "id": "screening",
+      "label": "筛选",
+      "timing": "每决策周周五收盘后跑一次完整链路（Phase 2 基本面 → Phase 3 技术分 → Phase 4 仓位）；日常由巡检链在第 ⑥ 步刷新数据与工作台页面。",
+      "steps": [
+        {
+          "name": "🚫 ST / 退市股过滤（2026-11-08 新增，默认开启）",
+          "detail": "进入任何池子之前先剔除 ST / 退市股。名单由 scripts/_ds_sync_st_list.py 每个交易日 15:45 同步（计划任务 ST_STListSync；周五那次即该周最终名单）：名称以 ST / *ST / S*ST / SST 开头（317 只）或含「退」（退市整理期 155 只），合计 472 / 5927。 过滤侧只取「决策日当日或之前最近的一份名单快照」——今天的决策立刻剔除；历史回测 （早于任何快照）拿不到名单、不剔股（不前视、口径与改造前逐字节一致）；快照逐日积累 之后，未来的回测会自动变成 PIT 正确。剔除范围＝决策表与技术池，所以目标池 / Top200 / 四维表都不会再出现 ST 股；已持仓的不强卖，靠出池 4 周轮动逐步退出。 开关：config/st_filter.yaml（新建的独立配置，不动任何冻结配置）。",
+          "source": "src/strategy/st_filter.py；scripts/_ds_sync_st_list.py；data/strategy/st_list/"
+        },
+        {
+          "name": "PB 估值快照构建",
+          "detail": "用 as_of 之前的行情与财报重建当日 PB 快照，作为 ROE/PB 主排序的分母。",
+          "source": "src/backtest/strategy.py:192"
+        },
+        {
+          "name": "Phase 2 基本面筛选",
+          "detail": "ScreeningPipeline.run → 先算基本面分，再过周期股守卫，最后跑一票否决。",
+          "source": "src/screening/pipeline.py:32"
+        },
+        {
+          "name": "资格过滤（硬门槛）",
+          "detail": "只保留 ROE ≥ max(lpr_default, roe_min)=3.5% 且 0 < PB ≤ 5.0 的票。",
+          "source": "src/screening/fundamental.py:36"
+        },
+        {
+          "name": "ROE/PB 主排序 + 两级折扣",
+          "detail": "adjusted_score = (ROE/PB) × 利润质量折扣 × 资产质量折扣；主排序键恒为 ROE/PB。",
+          "source": "src/screening/fundamental.py:37"
+        },
+        {
+          "name": "Top N 截断",
+          "detail": "正常模式取前 200（top_n），低估模式取前 1500（top_n_undervalued）。",
+          "source": "src/screening/fundamental.py:38"
+        },
+        {
+          "name": "周期股盲区守卫",
+          "detail": "异常净利率/毛利率三连降/增速失速/周期行业四项检查只做「警告 + 分数折扣」，不下否决（折扣 0.90 → 0.60 递减）。",
+          "source": "src/screening/pipeline.py:41"
+        },
+        {
+          "name": "21 条一票否决",
+          "detail": "V01-V21 逐条跑；任一不过即剔除。其中 17 条有实现、4 条是占位（无外部数据源，恒不判定）。17 条的当前状态——常态在判 7 条（V03/V08/V09/V11/V16/V19/V20）、输入恒空 4 条（V01/V02/V13/V21，实际不判定）、外部事件 4 条自 2026-11-21 起按生效日启用（V05/V06/V07/V15）、实测反向永不启用 2 条（V10/V18）。注意：输入数据为空时规则记为「未评估」而非「通过」，但**仍不否决** —— 这几种状态现在都能在 veto 结果里分开看到（unevaluated_rules 里的 missing_data / not_implemented / not_effective）。",
+          "source": "src/screening/veto.py:31"
+        },
+        {
+          "name": "已实现的 17 条否决",
+          "detail": "V01 营收同比（输入恒空→未评估）/ V02 利润同比（同）/ V03 经营现金流 / V05 处罚立案 / V06 股东减持 / V07 股权质押 / V08 净利率 / V09 ROE / V10 单季营收异常（实测反向、永不启用）/ V11 负债率 / V13 成本增速差（输入恒空→未评估）/ V15 定增配股 / V16 投资收益占比 / V18 合同负债（实测反向、永不启用）/ V19 单季营收 / V20 单季利润 / **V21 ST 与退市风险**。",
+          "source": "src/screening/veto.py:38"
+        },
+        {
+          "name": "外部事件四闸（2026-11-21 起按生效日启用）",
+          "detail": "V05 处罚/立案/警示函（近 365 日）、V06 股东减持（近 180 日）、V07 股权质押比例 > 0.5（2026-11-21 由 0.7 下调）、V15 定增/配股/发行股份（近 365 日）。数据来自巨潮公告事件表与东财质押周频快照，决策行自带 as_of 向前查最近一条，属 PIT。横截面实测（766 周、逐类型补集对照、120 日超额）四条同向显著：质押 −13.07pp（t=−15.03）、定增 −1.51pp（t=−10.22）、处罚 −1.64pp（t=−4.11）、减持 −1.18pp（t=−4.71）。**按生效日门控**：决策日早于 2026-11-21 一律记为未生效（not_effective）、不否决，所以历史目标池逐位未变；决策周都在周五，第一个真正受影响的决策周是 2026-11-27。预览（把决策日假设为生效日重跑本周候选表）—— phase2 前 200 会拦 31 只（15.5%）、本周目标池 15 只会拦 1 只（603733，V05+V15）。参数方面只改了一处：V07 的质押阈值由 0.7 下调到 0.5（0.7 在 766 周里只触发 119 次、单周候选命中 0 只，等于空转；≥50% 那段触发 762 次），其余三条参数一字未动。另外四条的日期都按**可得日**而非标注日前向查找：质押快照标注日全是周五、东财次周一 17:00 才更新，索引日期后移 4 天（VETO_PLEDGE_LAG_DAYS）；公告多在收盘后/周末发布，后移 1 天（VETO_EVENT_LAG_DAYS）。实测这处修正使 792 周里 V07 命中从 1240 降到 1235（−0.4%）、V06 −0.4%、V05 −0.1%、V15 +0.1% —— 前视确实存在，但量级很小。",
+          "source": "config/veto_rules.yaml:opt_in_enabled、reports/VETO_EFFECTIVE_20261121.md"
+        },
+        {
+          "name": "实测反向、永不启用 2 条（V10 / V18）",
+          "detail": "V10 单季营收异常（>300% 或 <−80%）被拦下的股票后续 120 日反而 +3.87pp；V18 合同负债同比大幅下滑被拦下的 +2.21pp。两条都与设计意图相反，启用等于反向筛选，故保留实现只为留证、config 里不声明，只有显式实验开关能唤起。",
+          "source": "reports/VETO_EFFECTIVE_20261121.md"
+        },
+        {
+          "name": "占位未实现的 4 条否决",
+          "detail": "V04 可转债 / V12 非经常性 / V14 利息 / V17 关联交易 —— 走 _todo 返回未实现标记，属「系统未覆盖」，不等于「未触发」。其中 V17 的公告数据其实已建好，但横截面实测 +0.85pp（t=+3.49，93.5% 的股票每周都命中）没有判别力，不适合做闸。",
+          "source": "src/screening/veto.py:96"
+        },
+        {
+          "name": "V21 ST 与退市风险（2026-11-01 新增）",
+          "detail": "按 stock_names.csv 的**当前名称**判定（*ST / ST / 退市）。该文件没有时间维度，用它反推历史等于前视，所以按规则参数 effective_from=2026-11-06 门控：早于该日的决策周 V21 记为未评估、不否决，历史回测一字不改；生效日之后才真正参与否决。长期正解是把 stock_names.csv 归档成带日期的快照表，届时历史周也能评估。",
+          "source": "config/veto_rules.yaml:120、src/screening/st_status.py:1"
+        },
+        {
+          "name": "候选池生成",
+          "detail": "过否决的行即 phase2 候选池；池空则该决策周直接空仓（mode 记 B3、purchase_ratio=0）。",
+          "source": "src/screening/pipeline.py:37"
+        },
+        {
+          "name": "Phase 3 技术打分",
+          "detail": "11 项技术指标各 0-6 分，满分 66；≥18 为 pass、≥23 为高置信（confidence 分档直接决定仓位权重）。",
+          "source": "src/backtest/strategy.py:196"
+        },
+        {
+          "name": "排序键与 C' 极端风险守卫",
+          "detail": "缓存构建时先按 pb_guard_quantile=0.9 丢掉池内 PB 分位最高的 10%，再取前 15。**取前 15 的排序键是 adjusted_score（Phase 2 基本面 ROE/PB 主排序分）；技术面 total_score 只决定 confidence 分档、进而影响权重大小，不决定选谁**（2026-11-21 起，口径变更带生效日）。此前「只跑 Phase 4」的构建路径把 phase3 文件序（total_score 降序）原样喂给权重函数，等于让技术面成了第二道硬排序，与 evaluate() 的口径不一致 —— 同一决策日会选出只重合约 3/15 的两份名单。PB 只做硬过滤，不做排序偏好。",
+          "source": "src/strategy/position.py:PHASE4_RANK_EFFECTIVE_FROM、reports/RANK_SPLIT_20261121.md"
+        },
+        {
+          "name": "Phase 4 取前 N 的排序键（2026-11-21 采纳）",
+          "detail": "两条构建路径（evaluate() 一次性 2→3→4、build_phase4_only() 只跑 Phase 4）与线上 CLI 现在共用 order_candidates_for_phase4()，默认按 adjusted_score 降序；生效日 2026-11-21 之前保持历史行序，所以重建历史缓存与既有缓存逐位一致（已实测 15/15、max|Δweight|=0）。实测（同池同日只换排序键，766 周）：技术面 −0.60pp / 基本面 +1.43pp，Δ=+2.03pp（t=5.90）；组合级臂 Δ公平 +86.13pp、逐年胜 13/16（p=0.021）、FIT +24.22 / VALID +53.17。代价：换手 5.61→10.89、平均仓位 0.366→0.466、VALID 段回撤变差 4.72pp。",
+          "source": "src/strategy/position.py:order_candidates_for_phase4、reports/RANK_SPLIT_20261121.md"
+        }
+      ],
+      "params": [
+        {
+          "name": "主排序方法",
+          "value": "roe_over_pb",
+          "source": "config/screening_params.yaml:ranking.method"
+        },
+        {
+          "name": "Top N（正常模式）",
+          "value": 200,
+          "source": "config/screening_params.yaml:ranking.top_n"
+        },
+        {
+          "name": "Top N（低估模式）",
+          "value": 1500,
+          "source": "config/screening_params.yaml:ranking.top_n_undervalued"
+        },
+        {
+          "name": "PB 上限",
+          "value": 5.0,
+          "source": "config/screening_params.yaml:roe_over_pb.max_pb"
+        },
+        {
+          "name": "ROE 门槛（与 LPR 取大）",
+          "value": "lpr_default 0.035 / roe_min 0.03",
+          "source": "config/screening_params.yaml:roe_vs_lpr"
+        },
+        {
+          "name": "利润质量：增速上下限 / 最低折扣",
+          "value": "max 0.30 / min -0.50 / penalty 0.5",
+          "source": "config/screening_params.yaml:profit_quality_adjust"
+        },
+        {
+          "name": "资产质量：应收 / 商誉阈值与折扣",
+          "value": "应收 0.30→×0.50；商誉 0.20→×0.70",
+          "source": "config/screening_params.yaml:asset_quality_adjust"
+        },
+        {
+          "name": "技术分 pass / 高置信 / 满分",
+          "value": "18 / 23 / 66",
+          "source": "config/indicator_params.yaml:scoring"
+        },
+        {
+          "name": "排序键",
+          "value": "total_score",
+          "source": "config/backtest_params.yaml:screening_sort.strategy"
+        },
+        {
+          "name": "C' PB 分位守卫",
+          "value": 0.9,
+          "source": "config/backtest_params.yaml:screening_sort.pb_guard_quantile"
+        },
+        {
+          "name": "周期守卫：警告折扣（1 条警告 → 下限）",
+          "value": "0.9 / 0.6",
+          "source": "config/cycle_guard_params.yaml:risk_adjustment"
+        },
+        {
+          "name": "周期行业 PB 上限",
+          "value": 1.5,
+          "source": "config/cycle_guard_params.yaml:cyclical_industries.stricter_pb_ceiling"
+        },
+        {
+          "name": "否决规则条数 / 已实现",
+          "value": "21 条配置，17 条已实现 / 4 条占位；已实现里常态在判 7 条、输入恒空 4 条（V01/V02/V13/V21）、自 2026-11-21 按生效日启用 4 条（V05/V06/V07/V15）、实测反向永不启用 2 条（V10/V18）",
+          "source": "config/veto_rules.yaml:rules"
+        },
+        {
+          "name": "V01 营收同比下限",
+          "value": -0.2,
+          "source": "config/veto_rules.yaml:rules.0.params.max_revenue_decline_pct"
+        },
+        {
+          "name": "V02 利润同比下限",
+          "value": -0.3,
+          "source": "config/veto_rules.yaml:rules.1.params.max_profit_decline_pct"
+        },
+        {
+          "name": "V08 净利率下限",
+          "value": 0.02,
+          "source": "config/veto_rules.yaml:rules.7.params.min_net_margin"
+        },
+        {
+          "name": "V09 ROE 下限",
+          "value": 0.03,
+          "source": "config/veto_rules.yaml:rules.8.params.min_roe"
+        },
+        {
+          "name": "V11 负债率上限（深价值档放宽到 0.95）",
+          "value": 0.8,
+          "source": "config/veto_rules.yaml:rules.10.params.max_debt_ratio"
+        },
+        {
+          "name": "V19 单季营收同比下限",
+          "value": -0.1,
+          "source": "config/veto_rules.yaml:rules.18.params.max_single_q_revenue_decline"
+        },
+        {
+          "name": "V20 单季利润同比下限",
+          "value": -0.2,
+          "source": "config/veto_rules.yaml:rules.19.params.max_single_q_profit_decline"
+        }
+      ],
+      "history": [
+        {
+          "item": "total_score_pb（PB 权重 3.0 直接参与排序）",
+          "status": "已否决",
+          "conclusion": "便宜票挤掉高总分核心票，全周期 31.73%/Sharpe 1.201，明显差于 v15 的 46.10%/1.539；横截面 PB 信号不能进排序键。",
+          "source": "reports/experiment_family_archive_20260817.md:35"
+        },
+        {
+          "item": "C' 极端 PB 分位守卫（pb_guard_quantile=0.9）",
+          "status": "已落地",
+          "conclusion": "短窗曾被否（38.65%/1.332），2026-08-09 超长窗（2011-2026）翻正：61.62%/0.404/-14.50% vs 28.02%/0.230/-17.32%，12/16 年赢 → 冻结为常驻风控。",
+          "source": "config/backtest_params.yaml:323"
+        },
+        {
+          "item": "Exp-I Ixxm 豁免闸（技术指标豁免）",
+          "status": "已否决",
+          "conclusion": "-14.4pp。决策池恒 15 只，任何豁免都变成零和替换（池替换效应），申请单点信号正确也会在决策链上反转。",
+          "source": "reports/experiment_family_archive_20260817.md:36"
+        },
+        {
+          "item": "低 PB 补充视野「交易化」",
+          "status": "已否决",
+          "conclusion": "只保留纯观察面板，禁止产生买卖信号；历史证据（P0-1/困境通道/PB tie-breaker）全负面，落地须另行立项。",
+          "source": "DS_WORKSPACE.md:34"
+        },
+        {
+          "item": "「高质量豁免」方向（HQ 结构卖出豁免）",
+          "status": "已否决",
+          "conclusion": "扩样后 HQ 持有期并不更长，结构卖出后 fwd20/40 短窗为负 → 方向不获支持，REJECTED 维持。",
+          "source": "DS_WORKSPACE.md:109"
+        },
+        {
+          "item": "tail(8) 截断导致 V01/V02/V13 永久失效 + 利润质量折扣恒定 0.5",
+          "status": "讨论中",
+          "conclusion": "已定位为边界差一（tail(8) → 只剩 7 季，_ttm_yoy 恒为空 → 三条闸门读到空值即放行，见 veto.py 的空值约定）；tail(9) 影子实验证明只修好半年报一档、对一季/三季报无效，需 11 期才稳；未修、未定案。",
+          "source": "reports/V01_V02_GAP_DIAGNOSIS_20261030.md:11"
+        }
+      ],
+      "notes": "每周五先用「ROE/PB + 两级质量折扣」从全市场挑出前 200，过 21 条否决（2026-11-21 起实际在判的从 7 条扩到 11 条；另外 4 条历史周按生效日不参与、2 条实测反向永不启用、4 条仍是占位），再用 11 项技术指标打 0-66 分排序 —— 池子始终是 200 只里挑 15 只。"
+    },
+    {
+      "id": "buy",
+      "label": "买入",
+      "timing": "每决策周周五收盘后（卖出 → 仓位减持 → 买入 的顺序执行），订单在次一交易日开盘成交；此外每个交易日的崩盘加仓扫描（crash_buy）可独立触发买入。",
+      "steps": [
+        {
+          "name": "空池即不买",
+          "detail": "目标池为空或 purchase_ratio ≤ 0（B3 预算为 0）时，整个买入 pass 直接返回。",
+          "source": "src/backtest/strategy.py:1927"
+        },
+        {
+          "name": "算周预算",
+          "detail": "预算 = min(当日现金, 总资产 × 当前模式周比例)；B1 70% / B2 25% / B3 0%。",
+          "source": "src/strategy/position.py:270"
+        },
+        {
+          "name": "实验预算折扣（已落地）",
+          "detail": "Exp-A 技术失效态（零分占比≥0.6 或 total_mean≤15）×0.5；Exp-D 强市错配（B2/B3 且持仓价格分位中位数<0.2）×0.5。",
+          "source": "src/backtest/strategy.py:1937"
+        },
+        {
+          "name": "Exp-X 深调买入放大（已落地）",
+          "detail": "创业板月线深调窗口（DIP_BUY）内，周预算 ×1.5。",
+          "source": "src/backtest/strategy.py:1942"
+        },
+        {
+          "name": "按目标缺口分配",
+          "detail": "rebalance_purchase_amounts 把周预算按各票「目标权重 － 当前市值」的缺口比例分配。",
+          "source": "src/strategy/portfolio.py:85"
+        },
+        {
+          "name": "新开仓名额",
+          "detail": "新开仓每决策周最多 12 笔，且总持仓数不超过 15 只；超限则本周顺延。",
+          "source": "src/strategy/portfolio.py:119"
+        },
+        {
+          "name": "分批买信号",
+          "detail": "首仓一次买满 planned；老仓常规补仓 0.5×planned；深跌 5%/10%/15% 触发三档加仓（0.5+0.40）×planned。",
+          "source": "src/strategy/signals.py:42"
+        },
+        {
+          "name": "加仓质量门槛",
+          "detail": "total_score < 23 的票一律不买（新老仓同规则）。",
+          "source": "src/strategy/signals.py:57"
+        },
+        {
+          "name": "不追高",
+          "detail": "现价相对成本已涨超 10% 则不再补仓（no-chase 估值纪律，是 B2 预算花不完的真实原因）。",
+          "source": "src/strategy/signals.py:65"
+        },
+        {
+          "name": "Exp-F 差基本面降速（已落地）",
+          "detail": "poor 档（ROE<5%）持仓的常规补仓比例再 ×0.7（少买弱基本面）。",
+          "source": "src/backtest/strategy.py:2072"
+        },
+        {
+          "name": "单票 / 总仓硬约束",
+          "detail": "单票买入额受 max_single_weight=25% 限制，全仓受 max_total_exposure=90% 限制，触顶即截断或跳出。",
+          "source": "src/backtest/strategy.py:2098"
+        },
+        {
+          "name": "下单与成交",
+          "detail": "决策日收盘价定价、次一交易日开盘成交；涨停不追（阈值 9.9%），100 股整数倍；一字涨停（开涨幅≥4.5% 且 high==low）不成交、订单顺延到下一可交易日。",
+          "source": "src/backtest/engine.py:129"
+        },
+        {
+          "name": "崩盘加仓（每日独立触发）",
+          "detail": "指数单日跌幅触发（上证 ≤-5%、创业板/中证1000 ≤-9%）时，用冷市 65%（热市 15%）现金对高总分持仓与目标池未持仓加仓，受同样的 25%/90% 上限约束。",
+          "source": "src/backtest/strategy.py:883"
+        },
+        {
+          "name": "🔬 试运行开关：B3 超配减持阈值 30% → 33%（TODO#54）",
+          "detail": "2026-11-08 用户决定先试运行，已在 config/backtest_params.yaml::experiment.b3_exposure 打开（trim_threshold 0.33）。它只影响「B3 市况下超配减持的目标仓位」， 不动冻结的 position_params.yaml（B3 目标仓位仍是 30%）。B3 周买入预算为 0， 所以买这一侧完全不受影响 —— 这个开关是**纯仓位管理**的，不属于买入逻辑。 证据强度：超长 808 周 46.85%→59.50%（+12.65pp、Sharpe 0.3285→0.3902、回撤不变）， 但相邻阈值 0.31/0.32 分别为 −0.71pp/+2.65pp，实验噪声地板约 ±13pp， 且生产 PIT 口径 0.33 尚未测过 ⇒ 属**未经证实的试运行**，不要当已验证改进引用。 回退：把 b3_exposure.enabled 改成 false。",
+          "source": "config/backtest_params.yaml::experiment.b3_exposure（reports/B3_EXPOSURE_20261108.md）"
+        }
+      ],
+      "params": [
+        {
+          "name": "周买入预算比例（B1/B2/B3）",
+          "value": "0.7 / 0.25 / 0.0",
+          "source": "config/position_params.yaml:weekly_purchase"
+        },
+        {
+          "name": "首仓比例",
+          "value": 1.0,
+          "source": "config/position_params.yaml:buy_batches.first_ratio"
+        },
+        {
+          "name": "常规补仓比例",
+          "value": 0.5,
+          "source": "config/position_params.yaml:buy_batches.regular_ratio"
+        },
+        {
+          "name": "深跌加仓比例",
+          "value": 0.4,
+          "source": "config/position_params.yaml:buy_batches.addon_ratio"
+        },
+        {
+          "name": "三档加仓回撤线（add_one / two / three_drawdown）",
+          "value": "0.05 / 0.1 / 0.15",
+          "source": "config/position_params.yaml:buy_batches"
+        },
+        {
+          "name": "不追高阈值",
+          "value": 0.1,
+          "source": "config/position_params.yaml:buy_batches.no_chase_gain"
+        },
+        {
+          "name": "加仓质量门槛",
+          "value": 23,
+          "source": "config/position_params.yaml:buy_batches.addon_min_score"
+        },
+        {
+          "name": "目标候选数",
+          "value": 15,
+          "source": "config/position_params.yaml:weights.target_candidate_count"
+        },
+        {
+          "name": "每周最多新开仓",
+          "value": 12,
+          "source": "config/position_params.yaml:weights.max_new_entries_per_week"
+        },
+        {
+          "name": "最多持仓数",
+          "value": 15,
+          "source": "config/position_params.yaml:limits.max_positions"
+        },
+        {
+          "name": "单票上限 / 总仓上限（max_single_weight / max_total_exposure）",
+          "value": "0.25 / 0.9",
+          "source": "config/position_params.yaml:limits"
+        },
+        {
+          "name": "崩盘加仓开关",
+          "value": true,
+          "source": "config/position_params.yaml:crash_buy.enabled"
+        },
+        {
+          "name": "崩盘触发线（index_threshold）",
+          "value": "{\"000001\": -0.05, \"399006\": -0.09, \"000852\": -0.09}",
+          "source": "config/position_params.yaml:crash_buy.index_threshold"
+        },
+        {
+          "name": "崩盘可用现金（冷市 / 热市）",
+          "value": "0.65 / 0.15",
+          "source": "config/position_params.yaml:crash_buy"
+        },
+        {
+          "name": "崩盘加仓质量门槛",
+          "value": 23,
+          "source": "config/position_params.yaml:crash_buy.target_score"
+        },
+        {
+          "name": "崩盘加仓保护期（天）",
+          "value": 30,
+          "source": "config/position_params.yaml:crash_buy.protect_days"
+        },
+        {
+          "name": "Exp-A 失败态预算折扣（触发：零分占比≥0.6 或 total_mean≤15.0）",
+          "value": 0.5,
+          "source": "config/backtest_params.yaml:experiment.failure_switch.buy_budget_ratio"
+        },
+        {
+          "name": "Exp-D 错配预算折扣（触发：B2/B3 且持仓价格分位中位数<0.2）",
+          "value": 0.5,
+          "source": "config/backtest_params.yaml:experiment.mismatch_control.buy_budget_ratio"
+        },
+        {
+          "name": "Exp-X 深调买入倍数",
+          "value": 1.5,
+          "source": "config/backtest_params.yaml:experiment.dip_buy.buy_multiplier"
+        },
+        {
+          "name": "Exp-F poor 档买入比例",
+          "value": 0.7,
+          "source": "config/backtest_params.yaml:experiment.fundamental_tier.poor_buy_ratio"
+        }
+      ],
+      "history": [
+        {
+          "item": "Exp-A 技术失效开关 / Exp-B 困境通道 / Exp-C 修复卖出 / Exp-D 错配控制",
+          "status": "已落地",
+          "conclusion": "v15 时代四条常驻实验，随 v16 冻结继续常开；可在 --experiment 里单独关掉做对照。",
+          "source": "reports/experiment_family_archive_20260817.md:50"
+        },
+        {
+          "item": "Exp-X 创业板深调买入点",
+          "status": "已落地",
+          "conclusion": "长窗 62.89%/0.410 vs 基线 61.62%/0.404（+1.27pp，回撤不变）；但样本仅 1 次 DIP_BUY（2025-06），后续触发需重新评估。",
+          "source": "config/backtest_params.yaml:101"
+        },
+        {
+          "item": "方向① B2 利用率（把 45% 目标仓位的缺口补上）",
+          "status": "已否决",
+          "conclusion": "缺口本质是 no-chase 估值纪律造成的，不是「不敢买」；强行补=追高接盘。",
+          "source": "reports/experiment_family_archive_20260817.md:14"
+        },
+        {
+          "item": "Exp-Y b2_utilization（B2 预算×1.5 + 放宽不追高）",
+          "status": "已否决",
+          "conclusion": "追高接盘，属加买类 5 连否决之一。",
+          "source": "reports/experiment_family_archive_20260817.md:15"
+        },
+        {
+          "item": "Exp-P / P7 模式动态化（按温度线性插值目标仓位与预算）",
+          "status": "已否决",
+          "conclusion": "超长 5/16 年赢、10/16 年输；冷区加买在持续下跌年被套。P5 修完分段锚点后仍不采纳。",
+          "source": "reports/experiment_family_archive_20260817.md:16"
+        },
+        {
+          "item": "Exp-N 冷市崩溃买入现金 65%→80%",
+          "status": "已否决",
+          "conclusion": "-5.2pp，大跌日加仓等于接飞刀（2019 年最典型）。",
+          "source": "reports/experiment_family_archive_20260817.md:17"
+        },
+        {
+          "item": "BC 底部确认组合（估值锚 + 右侧确认）",
+          "status": "已否决",
+          "conclusion": "组合触发 0 次；A 股底部不可识别——估值锚与右侧确认在时间上互斥。加买类第 5 次同源否决。",
+          "source": "reports/experiment_family_archive_20260817.md:18"
+        },
+        {
+          "item": "Exp-T 换手缓冲（Qlib TopkDropout 式）",
+          "status": "已否决",
+          "conclusion": "缓冲伤害轮动；且属于「降频」家族，降频正确路径在执行层效率而非策略层。",
+          "source": "reports/experiment_family_archive_20260817.md:23"
+        },
+        {
+          "item": "Exp-S 时令资金池（2 月春节 / 11 月消费季）",
+          "status": "已否决",
+          "conclusion": "不采纳（存档结论为「不采纳」，开关保持 off）。",
+          "source": "reports/experiment_family_archive_20260817.md:26"
+        },
+        {
+          "item": "Exp-H 持仓强弱指数反哺买卖",
+          "status": "已否决",
+          "conclusion": "不采纳；开关保持 off。",
+          "source": "reports/experiment_family_archive_20260817.md:27"
+        }
+      ],
+      "notes": "每周的买入额度先由「B 模式周比例」定上限，再被 A/D 两个实验按行情打折、被 X 在深调窗口放大，最后按目标缺口分给 15 只票、单票不超 25% —— 涨超 10% 的票不再补。"
+    },
+    {
+      "id": "sell",
+      "label": "卖出",
+      "timing": "每决策周周五收盘后先跑卖出 pass（信号卖出 + 掉池轮动），再跑 B 模式超配减持；非决策日只跑日级硬止损扫描（崩盘日暂停）。全部订单次日开盘成交。",
+      "steps": [
+        {
+          "name": "崩盘加仓保护期",
+          "detail": "冷市崩盘买入的票，30 天保护期内跳过所有常规卖出；只有「掉出目标池」或「周排名 > 50」才触发卖出审计。",
+          "source": "src/backtest/strategy.py:1793"
+        },
+        {
+          "name": "掉池计数",
+          "detail": "每决策周更新每只持仓的连续掉池周数（在池内清零，掉池累加）。",
+          "source": "src/backtest/strategy.py:1780"
+        },
+        {
+          "name": "Exp-B 困境通道延长",
+          "detail": "价格分位 ≤0.3 且 total_score ≥23 的持仓，轮动耐心从 4 周延长到 8 周（防止把低位优质票过早换掉）。",
+          "source": "src/backtest/strategy.py:1836"
+        },
+        {
+          "name": "轮动卖出",
+          "detail": "连续掉出目标池满 4 周即整仓清掉；B3 热市暂停轮动（热市靠减持而非轮动缩表）。",
+          "source": "src/backtest/strategy.py:1863"
+        },
+        {
+          "name": "技术卖出：500 日新高",
+          "detail": "收盘创 500 日新高 → 全额清仓（估值修复到位的决定性退出）。",
+          "source": "src/strategy/signals.py:88"
+        },
+        {
+          "name": "技术卖出：临近高点分两批",
+          "detail": "距 500 日高点回撤 ≤10% 时先卖 1/3，条件持续到第二周再卖 2/3。",
+          "source": "src/strategy/signals.py:90"
+        },
+        {
+          "name": "硬止损 -15%",
+          "detail": "相对成本跌超 15% 即整仓止损（每交易日都扫，非决策日也执行）。",
+          "source": "src/strategy/signals.py:157"
+        },
+        {
+          "name": "Exp-W 市场主导止损豁免（已落地）",
+          "detail": "大盘崩盘中（HS300 m60<0）且个股跌幅不超过大盘的 1.5 倍、基本面未恶化 → 止损最多延后 12 周，逐日重判。",
+          "source": "src/backtest/strategy.py:1590"
+        },
+        {
+          "name": "高点确认卖出",
+          "detail": "大盘价格分位 >70% 且个股价格分位 >70% 同时成立才触发；高置信（≥23 分）卖 50%，其余卖 1/3。",
+          "source": "src/strategy/signals.py:126"
+        },
+        {
+          "name": "基本面四类卖出",
+          "detail": "ROE 连续两季降超 20% / 营收同比连续两季为负 / 负债率跳升超 10pp / 经营现金流连续两季为负；按最新 ROE 档位只放开其中两类。",
+          "source": "src/strategy/signals.py:97"
+        },
+        {
+          "name": "Exp-F 档位差异化（已落地）",
+          "detail": "good 档（ROE>15%）技术/高点卖出比例 ×0.8（新高仍全额清）；poor 档（ROE<5%）×1.3 且触发 sell2 直接全额退出。",
+          "source": "src/backtest/strategy.py:1883"
+        },
+        {
+          "name": "Exp-C 修复卖出（已落地）",
+          "detail": "持仓 52 周价格分位回到 ≥0.7 → 追加全额卖出信号（估值修复完毕）。",
+          "source": "src/backtest/strategy.py:1905"
+        },
+        {
+          "name": "多信号合成",
+          "detail": "所有信号按「取最大比例」合成，一次最多一个退出单，不会重复卖同一只票。",
+          "source": "src/strategy/signals.py:137"
+        },
+        {
+          "name": "B 模式超配减持",
+          "detail": "全仓市值超过当前模式目标仓位时，先减掉池持仓、再按目标权重升序减池内票，直到回到目标。⚠️ B3 的目标已由 experiment.b3_exposure 从 30% 覆盖为 33%（2026-11-08 试运行）；B1 85% / B2 45% 不变。",
+          "source": "src/backtest/strategy.py:546"
+        },
+        {
+          "name": "日级止损扫描",
+          "detail": "非决策日遍历全部持仓，只判硬止损这一个信号（技术/高点/基本面一律留到周五决断）。",
+          "source": "src/backtest/strategy.py:716"
+        },
+        {
+          "name": "未接线通道（配置存在但代码里没有调用点）",
+          "detail": "日级限价确认卖出（_place_daily_sell，其 _settle_daily_sells 因此永不触发）、系统级强制退出（ST/停牌超限/财报不及时，system_force_exit_signal）、日回撤暂停开仓与连续止损降仓（risk_adjusted_exposure_multiplier）—— 三者只被单元测试引用，当前不产生任何真实交易动作，对应配置项等于是占位。",
+          "source": "src/backtest/strategy.py:752"
+        }
+      ],
+      "params": [
+        {
+          "name": "技术高点回看天数",
+          "value": 500,
+          "source": "config/position_params.yaml:sell.high_lookback_days"
+        },
+        {
+          "name": "临近高点阈值",
+          "value": 0.1,
+          "source": "config/position_params.yaml:sell.sell2_threshold"
+        },
+        {
+          "name": "两批卖出比例（sell2_first / sell2_second）",
+          "value": "0.3333333333 / 0.6666666667",
+          "source": "config/position_params.yaml:sell"
+        },
+        {
+          "name": "新高卖出比例",
+          "value": 1.0,
+          "source": "config/position_params.yaml:sell.new_high_ratio"
+        },
+        {
+          "name": "基本面信号卖出比例",
+          "value": 0.25,
+          "source": "config/position_params.yaml:sell.fundamental_ratio"
+        },
+        {
+          "name": "ROE 连续下滑阈值",
+          "value": 0.2,
+          "source": "config/position_params.yaml:sell.roe_decline_threshold"
+        },
+        {
+          "name": "营收同比下限",
+          "value": 0.0,
+          "source": "config/position_params.yaml:sell.revenue_yoy_threshold"
+        },
+        {
+          "name": "负债率跳升阈值",
+          "value": 0.1,
+          "source": "config/position_params.yaml:sell.debt_jump"
+        },
+        {
+          "name": "高点确认：大盘分位 / 个股分位",
+          "value": "0.7 / 0.7",
+          "source": "config/position_params.yaml:sell"
+        },
+        {
+          "name": "高点卖出比例（高置信 / 其他）",
+          "value": "0.5 / 0.3333333333",
+          "source": "config/position_params.yaml:sell"
+        },
+        {
+          "name": "ROE 档位线（good / poor）",
+          "value": "0.15 / 0.05",
+          "source": "config/position_params.yaml:sell"
+        },
+        {
+          "name": "掉池轮动周数",
+          "value": 4,
+          "source": "config/position_params.yaml:candidate_rotation.exit_if_out_of_pool_weeks"
+        },
+        {
+          "name": "热市暂停轮动",
+          "value": true,
+          "source": "config/position_params.yaml:candidate_rotation.pause_in_hot_market"
+        },
+        {
+          "name": "硬止损阈值",
+          "value": 0.15,
+          "source": "config/position_params.yaml:risk.stop_loss_threshold"
+        },
+        {
+          "name": "强制退出 ST —— 配置存在但未接线，当前不生效",
+          "value": true,
+          "source": "config/position_params.yaml:risk.force_exit_st"
+        },
+        {
+          "name": "连续止损上限（次）/ 降仓后敞口 —— 配置存在但未接线，当前不生效",
+          "value": "3 / 0.5",
+          "source": "config/position_params.yaml:risk"
+        },
+        {
+          "name": "停牌强制退出天数 —— 配置存在但未接线，当前不生效",
+          "value": 20,
+          "source": "config/position_params.yaml:execution.suspended_days_force_exit"
+        },
+        {
+          "name": "日级监控开关（日级硬止损的总闸）",
+          "value": true,
+          "source": "config/position_params.yaml:daily_monitor.enabled"
+        },
+        {
+          "name": "低开跳过比例 —— 属日级限价通道，该通道未接线，当前不生效",
+          "value": 0.03,
+          "source": "config/position_params.yaml:daily_monitor.low_open_skip_ratio"
+        },
+        {
+          "name": "Exp-B 困境通道轮动周数（门槛：价格分位 ≤0.3 且 total_score ≥23）",
+          "value": 8,
+          "source": "config/backtest_params.yaml:experiment.distressed_holding.rotation_weeks"
+        },
+        {
+          "name": "Exp-C 修复卖出分位线",
+          "value": 0.7,
+          "source": "config/backtest_params.yaml:experiment.repaired_sell.price_percentile_threshold"
+        },
+        {
+          "name": "Exp-W 豁免：跌幅倍数 / 最长周数",
+          "value": "1.5 / 12",
+          "source": "config/backtest_params.yaml:experiment.stop_market_exempt"
+        },
+        {
+          "name": "Exp-F good / poor 卖出比例系数",
+          "value": "0.8 / 1.3",
+          "source": "config/backtest_params.yaml:experiment.fundamental_tier"
+        }
+      ],
+      "history": [
+        {
+          "item": "Exp-F fundamental_tier 基本面档位差异化卖出",
+          "status": "已落地",
+          "conclusion": "唯一在 v16 落地的实验（+8.62pp 超长）。good 档缓卖、poor 档快卖；F 的 poor 快卖引擎后来被证明不可调（J×F、R×F 两次同构验证）。",
+          "source": "reports/experiment_family_archive_20260817.md:51"
+        },
+        {
+          "item": "Exp-J B1 冷市止损放宽（-15%→-20%）",
+          "status": "已否决",
+          "conclusion": "-14.03pp。J×F 机制冲突：差股滞留 -15%~-20% 带，F 轮动引擎失去燃料。⚠️ 但 2026-09-22 在干净 PIT 缓存上复验惩罚消失（-14.03pp → -0.14pp）→ 该判定对口径/窗口敏感。开关保持 off。",
+          "source": "reports/experiment_family_archive_20260817.md:41"
+        },
+        {
+          "item": "Exp-Q 崩盘加仓保护改否决判定",
+          "status": "已否决",
+          "conclusion": "-3.66pp。豁免锁仓，2019 阴跌年 -3.8pp；PIT 口径下更差（-2.76pp）→ 否决稳健。",
+          "source": "reports/experiment_family_archive_20260817.md:29"
+        },
+        {
+          "item": "Exp-M mode_trim 只减掉池持仓",
+          "status": "已否决",
+          "conclusion": "-8.5pp。减少换血导致 2024 微盘反弹时持仓劣化；PIT 下 -6.99pp → 否决稳健。",
+          "source": "reports/experiment_family_archive_20260817.md:28"
+        },
+        {
+          "item": "Exp-R profit_accel 单季净利同比修正档位",
+          "status": "讨论中",
+          "conclusion": "短窗 -7.42pp（R×F 交互为负，生死线命中），但换到精确 PIT 干净口径后归零（+0.10pp / +0.40pp），两次翻转 → 「否决不成立（中性）」；若要重启用须按立项准入重跑。开关保持 off。",
+          "source": "reports/experiment_family_archive_20260817.md:46"
+        },
+        {
+          "item": "Exp-Z 优质持有（高分票掉池后延长轮动窗口）",
+          "status": "已否决",
+          "conclusion": "延长持有劣化换血；降频家族 5 连败。",
+          "source": "reports/experiment_family_archive_20260817.md:25"
+        },
+        {
+          "item": "Exp-U 分位降级（长期在池 + 价格分位走高即卖）",
+          "status": "已否决",
+          "conclusion": "不采纳，开关保持 off。",
+          "source": "reports/experiment_family_archive_20260817.md:24"
+        },
+        {
+          "item": "P0-4 G-1/G-4 一字板不成交闸门（broker filler）",
+          "status": "已落地",
+          "conclusion": "一字板（high==low 且开盘涨跌幅≥4.5%）买卖单一律不成交、顺延下一可交易日，覆盖全部订单通道（含轮动/减持/日级紧急卖出）；23/23 场景 PASS，实测影响 -0.05pp。",
+          "source": "DS_WORKSPACE.md:118"
+        },
+        {
+          "item": "P0-4 G-3 日级限价单当日有效 + Exp-K 延迟确认卖出通道",
+          "status": "已接线未启用",
+          "conclusion": "2026-10-30 前该通道整套是死代码（_place_daily_sell 全仓无调用点 → daily_sell_orders 恒空 → _settle_daily_sells 每次开头就 return，实际只有日级硬止损在跑）。现已接线到开关 experiment.daily_monitor_deferred.enabled（默认 false）：打开后减仓类信号（sell2／高点／基本面）不再周五收盘市价卖，而是进入监控、按 confirm_days=4／confirm_weekday=3 于周四收盘挂次日限价单，次日开盘低于限价×(1−low_open_skip_ratio=0.03) 则撤单回监控，超 max_monitor_weeks=4 回归市价卖；硬止损与 N 日新高仍立即卖出。",
+          "source": "reports/DAILY_MONITOR_WIRING_20261030.md、config/backtest_params.yaml:experiment.daily_monitor_deferred"
+        },
+        {
+          "item": "Exp-K ON 实测（189 周，同窗口同缓存）",
+          "status": "暂不启用，保留为可开启开关（2026-11-01 用户决定）",
+          "conclusion": "收益 24.82%→26.04%（+1.22pp）、Sharpe 0.845→0.884（+0.039）、盈亏比 1.177→1.336 三项改善；但最大回撤 −10.37%→−11.85%（恶化 1.49pp）、胜率 −3.34pp、换手 +5.6%、回测墙钟 +43%。用户认可该权衡，当前保持 false，需要时自行打开。打开方式：config/backtest_params.yaml 里 experiment.daily_monitor_deferred.enabled 改 true（纯回测也可用 --experiment K）。边界：该开关经 ExperimentStrategy 生效，而每日巡检的试运行回测（`backtest --start 2026-01-01 --end <最新>`，不带 `--experiment`，直接用本配置的 experiment 段）就走这个策略，工作台的持仓/成交/周决策数据均由该回测结果派生（`_ds_gen_portfolio.py` 读 `results/backtest_2026-01-01_*.json`）——所以改成 true 会实际改变周五建议，不只是历史回测数字。买入侧不受影响：`decision.parquet`（phase4 目标表）来自缓存，不由策略产出。",
+          "source": "reports/DAILY_MONITOR_WIRING_20261030.md:④、src/backtest/strategy.py:773"
+        }
+      ],
+      "notes": "卖出的主引擎是「掉池 4 周轮动 + 500 日新高清仓 + -15% 硬止损」三件事，基本面四类信号只补刀；档位化（Exp-F）让好基本面卖得更慢、差基本面卖得更快。注意：ST/停牌强制退出、日回撤暂停开仓、连续止损降仓这三组配置在代码里没有接线点，当前不产生任何动作；延迟确认卖出通道已接线但开关默认关闭。"
+    },
+    {
+      "id": "position",
+      "label": "仓位管理",
+      "timing": "每决策周周五随 Phase 4 一次性定档（B 模式 → 目标仓位 → 目标权重 → 周预算）；市场温度与崩盘标志每日更新，用于日级止损豁免与崩盘加仓判定。",
+      "steps": [
+        {
+          "name": "六指数合成温度",
+          "detail": "上证/深证/沪深300/中证500/上证50/创业板六条指数等权合成 0-100 温度（分位 0.40 + 年分位 0.30 + 60 日动量 0.20 + MA60 偏离 0.10）。",
+          "source": "src/strategy/position.py:166"
+        },
+        {
+          "name": "定 B 模式",
+          "detail": "温度 ≤30 且冷共振 ≥4 个指数 → B1；温度 ≥70 且热共振 ≥4 → B3；其余 B2。",
+          "source": "src/strategy/position.py:175"
+        },
+        {
+          "name": "取目标仓位",
+          "detail": "B1 85% / B2 45% / B3 30%（全部按总资产计，不是按持仓市值）。⚠️ 2026-11-08 起 B3 的超配减持阈值被 experiment.b3_exposure 覆盖为 33%（试运行，仅改减持阈值，不改此处的冻结值 30%）。",
+          "source": "src/strategy/position.py:234"
+        },
+        {
+          "name": "候选截断",
+          "detail": "目标池只取前 target_candidate_count=15 只，其余即使过否决也不进仓。",
+          "source": "src/strategy/position.py:236"
+        },
+        {
+          "name": "算目标权重",
+          "detail": "基础权重 × 信心倍数（高置信 2.5 / 可用 1.0 / 观察 0）× 波动倍数（高于中位数 ×0.7）× 风险折扣（0.5），再归一化到目标仓位。",
+          "source": "src/strategy/position.py:240"
+        },
+        {
+          "name": "三层上限",
+          "detail": "单票 ≤25%、单行业 ≤30%、总仓 ≤90%；行业超限时该行业整体等比压缩。",
+          "source": "src/strategy/position.py:261"
+        },
+        {
+          "name": "周预算",
+          "detail": "预算 = min(现金, 总资产 × 模式周比例)，B1 70% / B2 25% / B3 0% —— B3 直接停止买入。",
+          "source": "src/strategy/position.py:270"
+        },
+        {
+          "name": "超配减持",
+          "detail": "市值高于当前模式目标仓位时按「先非池内、再池内低权重」顺序减持到目标，崩盘保护期内的票豁免。",
+          "source": "src/backtest/strategy.py:568"
+        },
+        {
+          "name": "执行成本与滑点",
+          "detail": "佣金 0.03% 双边 + 印花税 0.1%（仅卖出）；滑点先按日均成交额分位定基础档（高流动性 0.05% / 中 0.10% / 低 0.20%），再按单笔成交额占日均比例追加（>2% 加 0.08%、>5% 加 0.15%）；滑点计入佣金而非 broker 自身滑点（perc=0）。",
+          "source": "src/backtest/engine.py:429"
+        }
+      ],
+      "params": [
+        {
+          "name": "六指数池",
+          "value": "[\"000001\", \"399001\", \"000300\", \"000905\", \"000016\", \"399006\"]",
+          "source": "config/position_params.yaml:market_position.index_code"
+        },
+        {
+          "name": "指数权重",
+          "value": "[0.1666666667, 0.1666666667, 0.1666666667, 0.1666666667, 0.1666666667, 0.1666666667]",
+          "source": "config/position_params.yaml:market_position.index_weights"
+        },
+        {
+          "name": "温度分量权重",
+          "value": "{\"percentile_250\": 0.4, \"percentile_750\": 0.3, \"momentum_60\": 0.2, \"ma60_deviation\": 0.1}",
+          "source": "config/position_params.yaml:market_position.temperature_weights"
+        },
+        {
+          "name": "冷温度线 / 热温度线",
+          "value": "0.3 / 0.7",
+          "source": "config/position_params.yaml:market_position"
+        },
+        {
+          "name": "共振要求指数个数",
+          "value": 4,
+          "source": "config/position_params.yaml:market_position.resonance_required"
+        },
+        {
+          "name": "目标仓位（B1/B2/B3）",
+          "value": "{\"B1\": 0.85, \"B2\": 0.45, \"B3\": 0.3}",
+          "source": "config/position_params.yaml:market_position.mode_target_exposure"
+        },
+        {
+          "name": "分位回看天数",
+          "value": 750,
+          "source": "config/position_params.yaml:market_position.percentile_lookback_days"
+        },
+        {
+          "name": "单票 / 总仓 / 行业上限",
+          "value": "0.25 / 0.9 / 0.3",
+          "source": "config/position_params.yaml:limits"
+        },
+        {
+          "name": "最多持仓数",
+          "value": 15,
+          "source": "config/position_params.yaml:limits.max_positions"
+        },
+        {
+          "name": "信心倍数（高置信 / 可用 / 观察）",
+          "value": "2.5 / 1.0 / 0.0",
+          "source": "config/position_params.yaml:weights"
+        },
+        {
+          "name": "波动倍数（高波动 / 正常）",
+          "value": "0.7 / 1.0",
+          "source": "config/position_params.yaml:weights"
+        },
+        {
+          "name": "风险折扣倍数",
+          "value": 0.5,
+          "source": "config/position_params.yaml:weights.risk_discount_multiplier"
+        },
+        {
+          "name": "佣金 / 印花税",
+          "value": "0.0003 / 0.001",
+          "source": "config/position_params.yaml:execution"
+        },
+        {
+          "name": "涨跌停判定阈值（涨 / 跌）",
+          "value": "0.099 / -0.099",
+          "source": "config/position_params.yaml:execution"
+        },
+        {
+          "name": "整手股数",
+          "value": 100,
+          "source": "config/position_params.yaml:execution.board_lot"
+        },
+        {
+          "name": "决策日（4=周五）",
+          "value": 4,
+          "source": "config/backtest_params.yaml:runtime.decision_weekday"
+        },
+        {
+          "name": "滑点开关",
+          "value": true,
+          "source": "config/backtest_params.yaml:slippage.enabled"
+        },
+        {
+          "name": "实验总开关",
+          "value": true,
+          "source": "config/backtest_params.yaml:experiment.enabled"
+        }
+      ],
+      "history": [
+        {
+          "item": "v16-R 生产基线冻结",
+          "status": "已落地",
+          "conclusion": "2026-08-28 确立的当前口径：短窗 37.50% / 超长 56.91%；冻结常驻实验 = A/B/C/D/W/X + C' guard，另有 F 于 2026-08-17 落地为 v16 生产默认。",
+          "source": "reports/experiment_family_archive_20260817.md:5"
+        },
+        {
+          "item": "降频家族（F 变体 / B' / F+T 等 5 连败）",
+          "status": "已否决",
+          "conclusion": "「降频 5 败铁律」——降频的正确路径在执行层效率（订单合并/最小单门槛），不在策略层改规则。",
+          "source": "reports/experiment_family_archive_20260817.md:30"
+        },
+        {
+          "item": "冷市宽松镜像对称（加买类 / 卖出类宽松）",
+          "status": "已否决",
+          "conclusion": "加买类宽松在回升年赢、持续下跌年输（P/N/BC）；卖出类宽松在阴跌年赢、反弹年输（J）。冻结系统恰好站在两个方向的平衡点上，任何单向宽松只能赢一类年份。",
+          "source": "reports/experiment_family_archive_20260817.md:57"
+        },
+        {
+          "item": "生产口径切到精确 PIT",
+          "status": "已生效",
+          "conclusion": "已切换。生产缓存为 weekly_feature_cache_pit_v2，可见性判据 actual_disclosure <= 决策截止日（缺失时回退法定披露截止日）；两处入口均带 --pit。因此所有历史绩效均已是精确 PIT 口径，不再需要\"标注含 PIT 污染\"的旧提示。",
+          "source": "scripts/_ds_pit_switch.sh:22、scripts/_ds_mengda_prep.py:169、config/backtest_params.yaml:experiment"
+        },
+        {
+          "item": "长窗口径对照（189 周 现行 vs 精确 PIT）",
+          "status": "已定案",
+          "conclusion": "现行 39.51%/Sharpe 1.26 → PIT 24.82%/Sharpe 0.845，超额 26.22pp → 11.53pp；DSR 0.286 → 0.404 仍不显著。对外口径已定案为精确 PIT（2026-10-30 用户决策），39.51% 仅作含前视参考、不得当作可实现业绩对外表述。此前记录的 23.61%/0.80/10.31pp 属哑周退化缓存产物，已作废。",
+          "source": "reports/P0_2_PIT_BT_longpair.md:9-14、reports/TODO_PENDING.md:45"
+        },
+        {
+          "item": "家族 J/Q/R/M 在干净 PIT 缓存上复验",
+          "status": "讨论中",
+          "conclusion": "Q/M 否决稳健；J 惩罚消失（-14.03pp → -0.14pp）、R 两次翻转（-7.42pp → +0.40pp）→ 两条例外需加注「口径/窗口依赖」，尚未重新裁定。",
+          "source": "reports/TODO_PENDING.md:15"
+        }
+      ],
+      "notes": "仓位由「六指数温度」定档：越冷越满（B1 目标 85%、周预算 70%），越热越轻（B3 目标 30%、当周直接不买）；单票永远不超过 25%，全仓永远不超过 90%。"
+    }
+  ]
+}

@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026 试运行 · A股周级价值投资 · 系统工作台</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root { --bg:#0f1419; --card:#1a2129; --line:#2a3340; --fg:#dbe4ee; --dim:#8b98a5; --acc:#4da3ff; --ok:#3ddc84; --bad:#ff6b6b; --warn:#ffb454; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--fg); font-family:"Segoe UI","Microsoft YaHei",sans-serif; padding:20px; max-width:1500px; margin:0 auto; }
+  h1 { font-size:22px; margin-bottom:2px; }
+  .sub { color:var(--dim); font-size:12px; margin-bottom:10px; }
+  .badge { display:inline-block; padding:2px 10px; border-radius:10px; font-size:12px; background:var(--acc); color:#fff; margin-left:8px; vertical-align:middle; }
+  .tabbar { display:flex; flex-wrap:wrap; gap:6px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:10px 0; margin-bottom:16px; }
+  .tab { padding:7px 15px; border:1px solid var(--line); border-radius:8px; cursor:pointer; color:var(--dim); font-size:13px; background:var(--card); }
+  .tab:hover { border-color:var(--acc); color:var(--fg); }
+  .tab.active { background:var(--acc); color:#fff; border-color:var(--acc); font-weight:600; }
+  .panel { display:none; } .panel.active { display:block; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); gap:10px; margin-bottom:10px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:11px; }
+  .card .k { font-size:11px; color:var(--dim); margin-bottom:4px; }
+  .card .v { font-size:19px; font-weight:600; }
+  .card .d { font-size:11px; color:var(--dim); margin-top:4px; }
+  .pos { color:var(--ok); } .neg { color:var(--bad); } .warn { color:var(--warn); }
+  table { width:100%; border-collapse:collapse; font-size:12px; background:var(--card); border-radius:10px; overflow:hidden; margin-bottom:8px; }
+  th, td { padding:6px 9px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { background:#202a35; color:var(--dim); font-weight:600; position:sticky; top:0; }
+  tr:hover td { background:#1e2833; }
+  .box { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:13px; margin-bottom:8px; }
+  .chartbox { position:relative; height:300px; }
+  .seg { display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; margin-bottom:8px; }
+  .seg button { background:var(--card); color:var(--dim); border:none; padding:5px 16px; font-size:12px; cursor:pointer; }
+  .seg button.active { background:var(--acc); color:#fff; }
+  details { background:var(--card); border:1px solid var(--line); border-radius:10px; margin-bottom:6px; padding:9px 13px; }
+  summary { cursor:pointer; font-size:13px; }
+  summary:hover { color:var(--acc); }
+  .mini { font-size:11px; color:var(--dim); margin-left:8px; }
+  .tag { display:inline-block; font-size:11px; padding:1px 8px; border-radius:8px; margin-right:4px; }
+  .tag.buy { background:#123a2a; color:var(--ok); } .tag.sell { background:#3a1820; color:var(--bad); }
+  .tag.crash { background:#3a2f12; color:var(--warn); } .tag.md { background:#2a2340; color:#b48cff; }
+  .log { white-space:pre-wrap; font-size:12px; }
+  button.pbtn { background:var(--card); color:var(--acc); border:1px solid var(--line); border-radius:8px; padding:5px 13px; font-size:12px; cursor:pointer; margin:6px 0; }
+  button.pbtn:hover { border-color:var(--acc); }
+  .modeB1 { color:var(--acc); } .modeB2 { color:var(--dim); } .modeB3 { color:var(--bad); }
+  .dimm { color:var(--dim); font-size:11px; }
+  input { background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:5px 9px; font-size:12px; margin-bottom:8px; width:260px; }
+  .scroll { max-height:520px; overflow:auto; }
+  hr { border-color:var(--line); margin:10px 0; }
+</style>
+  <!-- deploy-stamp: 2026-11-25T20:19:00 -->
+</head>
+<body>
+<h1>2026 试运行<span class="badge">试运行年 · 第 1 年</span></h1>
+<div class="sub" id="pilotSub">加载中…</div>
+<hr>
+
+<div class="tabbar" id="tabbar">
+  <div class="tab active" data-p="overview">总览</div>
+  <div class="tab" data-p="equity">净值与回撤</div>
+  <div class="tab" data-p="temp">六指数温度与大盘每日得分</div>
+  <div class="tab" data-p="weekly">周决策</div>
+  <div class="tab" data-p="holdings">当前持仓明细</div>
+  <div class="tab" data-p="daily">日决策</div>
+  <div class="tab" data-p="fourdim">每周持仓 · 四维度评价</div>
+  <div class="tab" data-p="vision">补充视野 · 低PB价值观察层</div>
+  <div class="tab" data-p="top200">每周Top200候选池</div>
+  <div class="tab" data-p="targets">周决策目标池</div>
+  <div class="tab" data-p="observe">观察日志</div>
+  <div class="tab" data-p="strategy">总策略</div>
+  <div class="tab" data-p="strength">强弱指数（新）</div>
+</div>
+
+<div class="panel active" id="p-overview"><div class="cards" id="metricCards"></div></div>
+
+<div class="panel" id="p-equity"><div class="box"><div class="chartbox"><canvas id="eqChart"></canvas></div></div></div>
+
+<div class="panel" id="p-temp">
+  <div class="seg" id="kseg">
+    <button data-k="D" class="active">日K</button><button data-k="W">周K</button><button data-k="M">月K</button>
+  </div>
+  <div class="sub">六指数加权温度 0–100（= 当日大盘得分）；虚线为六指数分量（上证指数/深证成指/沪深300/中证500/上证50/创业板指）</div>
+  <div class="box"><div class="chartbox"><canvas id="tempChart"></canvas></div></div>
+</div>
+
+<div class="panel" id="p-weekly"><div id="weeklyList"></div></div>
+
+<div class="panel" id="p-holdings">
+  <div class="box"><div class="sub" id="holdSub">加载中…</div></div>
+  <div class="box" id="cycleBox" style="margin-top:10px;display:none"></div>
+  <div class="box" style="margin-top:10px">
+    <div class="scroll"><table><thead><tr><th></th><th>#</th><th>代码</th><th>名称</th><th>行业</th><th>股数</th><th>成本价(含费)</th><th>现价</th><th>市值</th><th>浮动盈亏</th><th>盈亏比例</th><th>权重</th><th>建仓日</th><th>持有周</th></tr></thead><tbody id="holdBody"></tbody></table></div>
+  </div>
+</div>
+
+<div class="panel" id="p-daily">
+  <div class="box">
+    <div class="sub">每交易日：温度（=大盘得分，同一数值）/模式/m20/m60/崩盘标志。<b>委托挂在决策日</b>（→ 后为真实成交日，正常为下一交易日开盘）；执行日行只回显「当天成交来自哪次决策」，不再把别人的委托算在自己头上</div>
+    <input id="dailySearch" placeholder="筛选日期 / 代码 / 原因…">
+    <div class="scroll"><table><thead><tr><th>日期</th><th>温度/得分</th><th>模式</th><th>m20</th><th>m60</th><th>崩盘</th><th>决策日委托 / 执行日成交</th></tr></thead><tbody id="dailyBody"></tbody></table></div>
+    <button class="pbtn" id="dailyMore">显示全部</button>
+  </div>
+</div>
+
+<div class="panel" id="p-fourdim">
+  <div class="box">
+    <div class="sub">四维度按梦大档位显示：<b>S &gt; A &gt; B &gt; C &gt; D &gt; E</b>，括号内是该维度的驱动分数。档位由他 11 期真实档位标定拟合而来（近似值，不等于他的原评）：技术面 ρ0.42、期待收益率 ρ0.25、基本面常规 ρ0.78、基本面价值 ρ0.38；带 <b>≈</b> 表示该维映射置信度偏低。<br>驱动分数依次为：技术分(0-66) / 8年价格百分位 / 单季净利同比 / PB。基本面常规用单季净利同比而非 ROE/PB —— 他的该维度"不随股价变化"，实测相关性 0.78 vs 0.13。<br><b>按交易日更新</b>：每个交易日按当日实际持仓明细重算四维度（周内买卖都会改变持仓）。下方按<b>交易周</b>分组——已结束的周显示该周最后交易日收盘后持仓（通常是周五，遇假期为周四），未结束的当周显示最新交易日收盘后持仓；当周退出个股单列在表格末尾，同样给四维度（评价口径 = 该周最后一日）。</div>
+    <div id="fourWeeks"></div>
+  </div>
+</div>
+
+<div class="panel" id="p-vision">
+  <div class="box">
+    <div class="sub">主池（top200）之外的低 PB 价值股（PB&lt;1.2 · 价分位&lt;25% · ROE≥7% · 通过否决）—— <b style="color:var(--warn)">纯观察，不产生任何买卖信号</b>。用途：预警"滑出者"、对照梦大风格、识别质量折扣误伤（研究性质）</div>
+    <div class="scroll"><table><thead><tr><th>代码</th><th>名称</th><th>行业</th><th>全市场rank</th><th>PB</th><th>ROE</th><th>价分位</th><th>adjusted</th><th>梦大持有</th><th>基准价</th><th>备注</th></tr></thead><tbody id="visionBody"></tbody></table></div>
+  </div>
+</div>
+
+<div class="panel" id="p-top200">
+  <div class="box">
+    <div class="sub" id="top200Sub">加载中…</div>
+    <input id="top200Search" placeholder="筛选代码 / 名称 / 行业…">
+    <div class="scroll"><table><thead><tr><th>rank</th><th>代码</th><th>名称</th><th>行业</th><th>PB</th><th>ROE</th><th>价分位</th><th>adjusted</th><th>基准价</th><th>备注</th></tr></thead><tbody id="top200Body"></tbody></table></div>
+  </div>
+</div>
+
+<div class="panel" id="p-targets">
+  <div class="box">
+    <div class="sub" id="targetsSub">加载中…</div>
+    <div class="sub" id="targetsNote"></div>
+    <div class="scroll"><table><thead><tr><th></th><th>#</th><th>代码</th><th>名称</th><th>行业</th><th>总分</th><th>基本面分</th><th>PB</th><th>价分位</th><th>ROE</th><th>池内排名</th></tr></thead><tbody id="targetsBody"></tbody></table></div>
+  </div>
+  <div class="box">
+    <div class="sub">每周变动 · 新进 / 掉出：原因只从缓存里的分数、池内排名、基本面与估值推导；「公告」列仅为旁证，不用来反推原因</div>
+    <div id="targetsChange"></div>
+  </div>
+</div>
+
+<div class="panel" id="p-observe"><div class="box" id="observeLog"></div></div>
+
+<div class="panel" id="p-strategy">
+  <div class="box" id="strategyFreeze"></div>
+  <div id="strategyBody"></div>
+</div>
+
+<script>
+let PM, PE, PD, PW, PF, PV, PT, OBS, PSTR;
+let tempChart = null;
+let PH = null, PFL = null, PTG = null, SM = null;
+const f2 = x => x == null ? "-" : Number(x).toFixed(2);
+const cls = x => x > 0 ? "pos" : (x < 0 ? "neg" : "");
+const pct = (x, s=2) => x == null ? "-" : Number(x).toFixed(s) + "%";
+
+async function load() {
+  // 数据请求加缓存穿透：GitHub Pages 与浏览器都会缓存 JSON，曾导致新页面拿到旧数据
+  // （表现：四维度页新表头配上旧 JSON → 档位全显示成"—"）。
+  // 容错加载：任何一个 JSON 失败都不再拖垮整页（此前是 all-or-nothing，
+  // 一个文件 404/解析失败 → Promise.all 直接 reject → 页面永远停在"加载中"）。
+  window.__loadFailed = [];
+  const j = p => fetch(`data/${p}.json`, {cache: "no-store"})
+    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+    .catch(err => { window.__loadFailed.push(`${p}: ${err.message}`); return null; });
+  [PM, PE, PD, PW, PF, PV, PT, OBS, PH, PFL, PTG, SM, PSTR, PAA, PCY] = await Promise.all(["pilot_metrics","pilot_equity","pilot_daily","pilot_weekly","pilot_four_dim","pilot_vision","pilot_top200","observation","pilot_holdings","pilot_fills","pilot_targets","strategy_manual","pilot_strength","pilot_analysis","pilot_cycles"].map(j));
+  document.getElementById("pilotSub").innerHTML =
+    `A股周级价值投资 · 试运行起始 ${PM.start_date}（初始资金 ¥${PM.initial_cash.toLocaleString()}）· 截至 ${PM.end_date} · 共 ${PM.decision_weeks} 个决策周 / ${PM.trading_days} 个交易日 · 仅展示，不做任何交易决策`
+    + (PM.stale_note ? `<br><span class="warn">⚠ ${PM.stale_note}</span>` : "");
+  renderMetrics(); renderEquity(); renderTemp("D"); renderHoldings(); renderWeekly(); renderDaily(); renderFourDim(); renderVision(); renderTop200(); renderTargets(); renderObserve(); renderStrategy(); renderStrength();
+  document.querySelectorAll("#tabbar .tab").forEach(t => t.onclick = () => {
+    document.querySelectorAll("#tabbar .tab").forEach(x => x.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(x => x.classList.remove("active"));
+    t.classList.add("active"); document.getElementById("p-"+t.dataset.p).classList.add("active");
+  });
+  document.querySelectorAll("#kseg button").forEach(b => b.onclick = () => {
+    document.querySelectorAll("#kseg button").forEach(x => x.classList.remove("active"));
+    b.classList.add("active"); renderTemp(b.dataset.k);
+  });
+}
+
+function renderMetrics() {
+  const items = [
+    ["当前净值", "¥" + PM.final_equity.toLocaleString(), "截至 " + PM.end_date],
+    ["总收益率", pct(PM.total_return), "2026-01-01 起"],
+    ["年化收益", pct(PM.annualized_return), ""],
+    ["最大回撤", pct(PM.max_drawdown), ""],
+    ["Sharpe", Number(PM.sharpe ?? 0).toFixed(3), ""],
+    ["基准收益", pct(PM.benchmark_return), "超额 " + pct(PM.excess_return)],
+    ["持仓数", PM.final_positions, "平均持仓"],
+    ["累计交易成本", "¥" + PM.total_cost.toLocaleString(), PM.closed_trades + " 笔已平仓"],
+    ["最新持仓金额", "¥" + (PM.latest_invested ?? 0).toLocaleString(), (PM.latest_invested_chg != null ? (PM.latest_invested_chg >= 0 ? "▲ +¥" : "▼ ¥") + Math.abs(PM.latest_invested_chg).toLocaleString() + " (" + (PM.latest_invested_chg_pct >= 0 ? "+" : "") + PM.latest_invested_chg_pct + "%)" : "较上一交易日")],
+  ];
+  document.getElementById("metricCards").innerHTML = items.map(([k,v,d]) =>
+    `<div class="card"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join("");
+}
+
+function renderEquity() {
+  new Chart(document.getElementById("eqChart"), {
+    type: "line",
+    data: { labels: PE.map(p => p.date), datasets: [
+      { label: "净值 (¥)", data: PE.map(p => p.equity), borderColor: "#4da3ff", yAxisID: "y", pointRadius: 0, tension: 0.2, borderWidth: 2 },
+      { label: "持仓金额 (¥)", data: PE.map(p => p.invested ?? null), borderColor: "#ffb454", yAxisID: "y", pointRadius: 0, tension: 0.2, borderWidth: 1.5, borderDash: [5,4] },
+      { label: "回撤 (%)", data: PE.map(p => p.drawdown), borderColor: "#ff6b6b", yAxisID: "y1", pointRadius: 0, tension: 0.2, borderWidth: 1.5 },
+    ]},
+    options: { maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+    hover: { mode: "index", intersect: false },
+    plugins: { legend: { labels: { color: "#dbe4ee" } },
+      tooltip: { mode: "index", intersect: false, backgroundColor: "rgba(16,22,30,.94)",
+                 borderColor: "#2b3846", borderWidth: 1, padding: 10, displayColors: true } },
+      scales: { x: { ticks: { maxTicksLimit: 12, color: "#8b98a5" } }, y: { ticks: { color: "#8b98a5" } }, y1: { position: "right", grid: { drawOnChartArea: false }, ticks: { color: "#8b98a5" } } } },
+  });
+}
+
+// 日K / 周K / 月K 聚合（周=周起始分组取周期末记录；月=按年月取末记录）
+function aggByK(data, k) {
+  if (k === "D") return data;
+  const keyFn = k === "W"
+    ? d => { const dt = new Date(d.date + "T00:00:00"); const day = (dt.getDay() + 6) % 7; dt.setDate(dt.getDate() - day); return dt.toISOString().slice(0,10); }
+    : d => d.date.slice(0,7);
+  const map = new Map();
+  for (const x of data) map.set(keyFn(x), x);
+  return [...map.values()];
+}
+
+function renderTemp(k) {
+  const data = aggByK(PD, k);
+  if (tempChart) tempChart.destroy();
+  const compKeys = Object.keys((data.find(d => d.components) || {}).components || {});
+  const compColors = ["#4da3ff","#b48cff","#ffb454","#ff8fd8","#5fe3c8","#a8c8ff"];
+  const ds = [
+    { label: "大盘温度/得分", data: data.map(d => d.temperature), borderColor: "#3ddc84", pointRadius: 0, tension: 0.2, borderWidth: 2.5 },
+    ...compKeys.map((key, i) => ({ label: key, data: data.map(d => (d.components || {})[key] ?? null), borderColor: compColors[i % compColors.length], pointRadius: 0, tension: 0.2, borderWidth: 1, borderDash: [3,3] })),
+  ];
+  tempChart = new Chart(document.getElementById("tempChart"), {
+    type: "line",
+    data: { labels: data.map(d => d.date), datasets: ds },
+    options: { maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      hover: { mode: "index", intersect: false },
+      plugins: { legend: { labels: { color: "#dbe4ee", boxWidth: 12, font: { size: 10 } } },
+        tooltip: { mode: "index", intersect: false, backgroundColor: "rgba(16,22,30,.94)",
+                   borderColor: "#2b3846", borderWidth: 1, padding: 10, displayColors: true } },
+      scales: { x: { ticks: { maxTicksLimit: 16, color: "#8b98a5" } }, y: { min: 0, max: 100, ticks: { color: "#8b98a5" } } } },
+  });
+}
+
+function renderWeekly() {
+  const box = document.getElementById("weeklyList");
+  box.innerHTML = PW.slice().reverse().map(w => {
+    const buys = w.buys.map(b => `<span class="tag buy">买 ${b.symbol} ${b.quantity}股@${b.price}</span>`).join("");
+    const sells = w.sells.map(s => `<span class="tag sell">卖 ${s.symbol} ${s.quantity}股@${s.price} <span class="dimm">${s.reason}</span></span>`).join("");
+    const crash = [...w.buys, ...w.sells].filter(x => (x.reason||"").includes("crash")).length ? `<span class="tag crash">crash</span>` : "";
+    const wfill = (PFL && PFL.weekly.find(x => x.week === w.week)) || {};
+    const wf = wfill.failed || [];
+    const wfTag = wf.length ? `<span class="tag bad">未成交 ${wf.length} 笔</span>` : "";
+    const wpl = (wfill.orders || []).filter(o => o.state === "planned");
+    const wplTag = wpl.length ? `<span class="tag crash">待执行 ${wpl.length} 笔</span>` : "";
+    const wplLine = wpl.length ? `<div class="mini" style="margin-top:6px;color:var(--warn)">待执行（下一交易日开盘，尚未成交）：` +
+      wpl.map(o => `${o.action === "BUY" ? "买" : "卖"} ${o.symbol}${o.name ? " " + o.name : ""} ${o.quantity}股${o.reason ? ` <span class="dimm">${o.reason}</span>` : ""}`).join(" · ") + `</div>` : "";
+    return `<details><summary>决策周 ${w.week} · 模式 ${w.mode} · 目标 ${w.target_count} 只 · 持仓 ${w.holdings.length} 只 · 周收益 <span class="${cls(w.week_return)}">${pct(w.week_return)}</span>${crash}${wfTag}${wplTag}<span class="mini">已成交 买 ${w.buys.length} / 卖 ${w.sells.length}${wpl.length ? ` · 待执行 ${wpl.length}` : ""}</span></summary>
+      <div style="margin-top:8px">${buys || '<span class="dimm">本周无买入</span>'}<br>${sells || '<span class="dimm">本周无卖出</span>'}</div>
+      <div style="margin-top:6px">${failTags(wf, "未成交") || ""}${wplLine}</div>
+      <div class="mini" style="margin-top:6px">目标池: ${w.targets.join(" ") || "-"}</div>
+    </details>`;
+  }).join("");
+}
+
+function renderDaily() {
+  const body = document.getElementById("dailyBody");
+  const row = d => {
+    const fill = (PFL && PFL.daily.find(x => x.date === d.date)) || {};
+    const df = fill.failed || [];
+    // 委托终态统计来自回测 order_log（不再靠价格反推）
+    const planned = (fill.orders || []).filter(o => o.state === "planned");
+    const fillLine = fill.orders_count ? `<div class="mini">委托 ${fill.orders_count} 笔 → 成交 ${fill.filled_count || 0}${fill.failed_count ? ` · <span class="bad">未成交 ${fill.failed_count}</span>` : ""}${fill.pending_count ? ` · 待定 ${fill.pending_count}` : ""}${fill.planned_count ? ` · <span class="warn">待执行 ${fill.planned_count}</span>` : ""}</div>` : "";
+    // 2026-11-06：决策日=当日、执行日在下一交易日的委托（末日委托计划），以前完全不可见
+    const plannedLine = planned.length ? `<div class="mini" style="color:var(--warn)">待执行 ${planned.length} 笔（下一交易日开盘）：` +
+      planned.map(o => `${o.action === "BUY" ? "买" : "卖"} ${o.symbol}${o.name ? " " + o.name : ""} ${o.quantity}股${o.reason ? ` <span class="dimm">${o.reason}</span>` : ""}`).join(" · ") + `</div>` : "";
+    const acts = (d.actions || []).length ? d.actions.map(a => {
+      const ex = a.trade_date ? `<span class="dimm">→${a.trade_date.slice(5)}</span>` : "";
+      return `<span class="tag ${a.action==="buy"?"buy":"sell"}">${a.action==="buy"?"买":"卖"} ${a.symbol} ${a.quantity}股${ex} <span class="dimm">${a.reason||""}</span></span>`;
+    }).join(" ") : `<span class="dimm">—</span>`;
+    // 执行日回显：当天成交属于哪一次决策（不再把上一决策的委托挂到当天决策上）
+    const exes = d.executions || [];
+    const echo = exes.length ? (() => {
+      const by = {};
+      exes.forEach(o => {
+        const k = String(o.decision_date || "");
+        by[k] = by[k] || { b: 0, s: 0 };
+        if (o.action === "buy") by[k].b++; else by[k].s++;
+      });
+      return Object.keys(by).sort().map(k =>
+        `<div class="dimm">↑ ${k.slice(5)} 决策成交 ${by[k].b + by[k].s} 笔（买${by[k].b}/卖${by[k].s}）</div>`).join("");
+    })() : "";
+    return `<tr><td>${d.date}</td><td>${f2(d.temperature)}</td><td class="mode${d.mode}">${d.mode}</td><td>${pct(d.m20)}</td><td>${pct(d.m60)}</td><td>${d.crashing ? '<span class="bad">●</span>' : '<span class="dimm">—</span>'}</td><td>${acts}${df.length ? " " + failTags(df, "未成交") : ""}${fillLine}${plannedLine}${echo}</td></tr>`;
+  };
+  let limit = 30;
+  const draw = list => body.innerHTML = list.slice(-limit).reverse().map(row).join("");
+  draw(PD);
+  document.getElementById("dailySearch").oninput = e => {
+    const q = (e.target.value||"").trim().toLowerCase();
+    draw(q ? PD.filter(d => d.date.includes(q)
+      || (d.actions||[]).some(a => a.symbol.includes(q) || (a.reason||"").toLowerCase().includes(q))
+      || (d.executions||[]).some(a => a.symbol.includes(q))) : PD);
+  };
+  document.getElementById("dailyMore").onclick = () => { limit = PD.length; draw(PD); document.getElementById("dailyMore").style.display = "none"; };
+}
+
+
+function failTags(list, kind) {
+  if (!list || !list.length) return "";
+  return list.map(o => `<span class="tag bad" title="${(o.note||"").replace(/"/g,"")}">${kind} ${o.symbol}${o.name?" "+o.name:""}@${o.price}</span>`).join(" ");
+}
+
+function renderHoldings() {
+  if (!PH) return;
+  const sub = document.getElementById("holdSub");
+  const sign = v => (v > 0 ? "+" : "");
+  sub.innerHTML = `<span class="dimm">本系统回测回放（虚拟资金，与梦大个人账户无关；他的持仓只在「补充视野」里以「梦大持有」标记出现）</span> · `
+    + `截至 <b>${PH.as_of}</b> · 持仓 <b>${PH.position_count}</b> 只 · 总市值 <b>¥${PH.total_market_value.toLocaleString()}</b> `
+    + `· 总成本(含费) ¥${PH.total_cost_basis.toLocaleString()} · 浮动盈亏 <b class="${cls(PH.total_pnl)}">${sign(PH.total_pnl)}¥${PH.total_pnl.toLocaleString()}</b> `
+    + `(<span class="${cls(PH.total_pnl)}">${sign(PH.total_pnl_pct)}${PH.total_pnl_pct}%</span>)`
+    + `<div class="mini" style="margin-top:6px">成本口径：移动加权平均，买入手续费摊入成本、卖出不改成本价 · 现价取最新收盘</div>`;
+  const body = document.getElementById("holdBody");
+  body.innerHTML = PH.rows.map((r, i) => `<tr>
+    <td><span class="an-toggle" data-sym="${r.symbol}" title="展开个股分析图">▶</span></td>
+    <td>${i+1}</td><td>${r.symbol}</td><td>${r.name||"-"}</td><td class="dimm">${r.industry||"-"}</td>
+    <td>${r.qty.toLocaleString()}</td><td>${f2(r.avg_cost)}</td><td>${f2(r.close)}</td>
+    <td>${r.market_value.toLocaleString()}</td>
+    <td class="${cls(r.pnl)}">${sign(r.pnl)}${r.pnl.toLocaleString()}</td>
+    <td class="${cls(r.pnl)}">${sign(r.pnl_pct)}${r.pnl_pct}%</td>
+    <td>${r.weight_pct}%</td><td class="dimm">${r.first_buy||"-"}</td><td>${r.held_weeks ?? "-"}</td></tr>`).join("");
+  renderCycleBox();
+}
+
+/* #51a E1/E2：持仓的「周期位置」分布 + 新进池周期预警
+   依据 reports/CYCLE_ATTR_20261108.md：距上轮高点 ≤10 周后续 13 周 -4.60%（胜率 38.6%），
+   >60 周 +6.81%（57.3%），完全单调；52 周价格分位几乎无区分力。变量严格 PIT。 */
+function renderCycleBox() {
+  const box = document.getElementById("cycleBox");
+  if (!box) return;
+  if (typeof PCY === "undefined" || !PCY || !PCY.buckets) { box.style.display = "none"; return; }
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const colors = { "≤10周": "#b3261e", "11-20周": "#c05000", "21-30周": "#b07a00",
+                   "31-40周": "#2a6fb0", "41-60周": "#1f7a4d", ">60周": "#0a7d32", "无数据": "#888" };
+  const bars = PCY.buckets.filter(b => b.n > 0).map(b => {
+    const c = colors[b.label] || "#888";
+    return `<div style="display:flex;align-items:center;gap:6px;margin:3px 0">
+      <span style="width:56px;font-size:11px;color:${c}">${b.label}</span>
+      <span style="flex:1;background:${c}22;height:12px;border-radius:2px;position:relative">
+        <span style="position:absolute;left:0;top:0;bottom:0;width:${Math.min(b.pct, 100)}%;background:${c};border-radius:2px"></span></span>
+      <span style="width:96px;font-size:11px;text-align:right">${b.n} 只 / ${b.pct}%</span></div>`;
+  }).join("");
+  const w = PCY.new_entries_warn || {};
+  const warnHtml = (w.count > 0)
+    ? `<div class="mini" style="margin-top:8px;color:#c05000">⚠ ${esc(w.note)}：${(w.detail || []).map(d => `${esc(d.symbol)} ${esc(d.name || "")}(${d.weeks_since_peak}周)`).join("、")}</div>`
+    : `<div class="mini" style="margin-top:8px">${esc(w.note || "")}</div>`;
+  box.style.display = "";
+  box.innerHTML = `<div class="sub"><b>持仓周期位置分布</b>
+      <span class="mini">距上轮高点周数（严格 PIT，ZigZag 25%）· 中位 ${PCY.summary.median_weeks_since_peak} 周 · ${PCY.summary.holdings} 只 / ¥${(PCY.summary.total_market_value || 0).toLocaleString()}</span></div>
+    <div style="margin-top:8px">${bars}</div>
+    <div class="mini" style="margin-top:6px">历史分档（#51a 实测 13,430 个持仓-周，13 周后续收益）：≤10周 <b>−4.60%</b>（胜率 38.6%）· 11-20周 −0.68% · 21-30周 +2.89% · 31-40周 +3.64% · 41-60周 +4.80% · &gt;60周 <b>+6.81%</b>（57.3%）</div>
+    ${warnHtml}`;
+}
+
+// 0-1 的比率转百分比字符串（注意：旧的 pct() 不乘 100，只适合已放大过的值）
+const pctv = (x, s=2) => x == null ? "-" : (Number(x) * 100).toFixed(s) + "%";
+
+function gradeCell(grade, conf, scoreText) {
+  const txt = (scoreText === null || scoreText === undefined || scoreText === "-") ? "—" : scoreText;
+  if (!grade) return `<td class="dimm">—（${txt}）</td>`;
+  const mark = conf === "low" ? "≈" : "";
+  const color = {S:"#0a7d32", A:"#1f7a4d", B:"#2a6fb0", C:"#b07a00", D:"#c05000", E:"#b3261e"}[grade] || "#666";
+  return `<td><b style="color:${color}">${mark}${grade}</b>（${txt}）</td>`;
+}
+
+function renderFourDim() {
+  const box = document.getElementById("fourWeeks");
+  if (!box) return;
+  const byWeek = {};
+  PF.forEach(r => { (byWeek[r.week] = byWeek[r.week] || []).push(r); });
+  const weeks = Object.keys(byWeek).sort().reverse();
+  const head = `<table><thead><tr><th>代码</th><th>名称</th><th>行业</th><th>技术面</th><th>期待收益率</th><th>基本面常规</th><th>基本面价值</th><th>combo</th><th>退出日</th></tr></thead><tbody>`;
+  const rowOf = (r, showExit) => {
+    const combo = [r.expected_combo && "预期", r.fund_combo && "资金"].filter(Boolean).join("+");
+    return `<tr><td>${r.symbol}</td><td>${r.name||"-"}</td><td>${r.industry||"-"}</td>
+      ${gradeCell(r.technical_grade, r.technical_grade_conf, f2(r.technical_abs))}
+      ${gradeCell(r.expected_grade, r.expected_grade_conf, pctv(r.expected_abs, 2))}
+      ${gradeCell(r.single_q_profit_yoy_grade, r.single_q_profit_yoy_grade_conf, pctv(r.single_q_profit_yoy, 1))}
+      ${gradeCell(r.value_grade, r.value_grade_conf, f2(r.value_abs))}
+      <td>${combo||"-"}</td>${showExit?`<td>${r.exit_date||"-"}</td>`:""}</tr>`;
+  };
+  box.innerHTML = weeks.map((w, i) => {
+    const rows = byWeek[w];
+    const endRows = rows.filter(r => r.as_of === w);           // 该周最后交易日的口径
+    const hold = endRows.filter(r => r.held !== false).sort((a,b)=> a.symbol < b.symbol ? -1 : 1);
+    const exit = endRows.filter(r => r.held === false).sort((a,b)=> a.symbol < b.symbol ? -1 : 1);
+    // 周内逐日持仓数（由逐日行反推），周内买卖一眼可见
+    const perDay = {};
+    rows.filter(r => r.held !== false).forEach(r => { perDay[r.as_of] = (perDay[r.as_of] || 0) + 1; });
+    const trail = Object.keys(perDay).sort().map(d => `${d.slice(5)}:${perDay[d]}`).join(" → ");
+    return `<details ${i === 0 ? "open" : ""} style="margin:10px 0">
+      <summary style="cursor:pointer;padding:6px 0;font-weight:600">交易周 ${w} · 最终持仓 ${hold.length} 只${exit.length ? ` · 当周退出 ${exit.length} 只` : ""}
+        <span class="dimm" style="font-weight:400">（周内逐日持仓数 ${trail || "-"}）</span></summary>
+      <div class="scroll">${head}${hold.map(r => rowOf(r, false)).join("")}</tbody></table></div>
+      ${exit.length ? `<div class="sub" style="margin-top:10px">当周退出（评价口径 = ${w}；退出日 = 本周内最后持有日）</div>
+      <div class="scroll">${head}${exit.map(r => rowOf(r, true)).join("")}</tbody></table></div>` : ""}
+    </details>`;
+  }).join("");
+}
+
+function renderVision() {
+  const body = document.getElementById("visionBody");
+  body.innerHTML = PV.map(v => `<tr><td>${v.code}</td><td>${v.name||"-"}</td><td>${v.industry||"-"}</td><td>${v.rank ?? "-"}</td><td>${f2(v.pb)}</td><td>${pct(v.roe_pct,1)}</td><td>${pct(v.price_pct,1)}</td><td>${v.adjusted ?? "-"}</td><td>${v.mengda ? '<span class="tag md">梦大</span>' : "-"}</td><td>${v.base_close ?? "-"}</td><td class="dimm">${v.note||""}</td></tr>`).join("");
+}
+
+function renderTop200() {
+  document.getElementById("top200Sub").textContent =
+    `决策周 ${PT.week}（池子基准价日 ${PT.price_date}）· 全市场 ROE/PB 主排序前 ${PT.count}（含否决前候选，phase2 缓存口径）`
+    + (PT.pb_snapshot_date ? ` · PB 快照日 ${PT.pb_snapshot_date}` : "");
+  const body = document.getElementById("top200Body");
+  const draw = list => body.innerHTML = list.map(x => `<tr><td>${x.rank}</td><td>${x.symbol}</td><td>${x.name||"-"}</td><td>${x.industry||"-"}</td><td>${f2(x.pb)}</td><td>${pct(x.roe_pct,1)}</td><td>${pct(x.price_pct,1)}</td><td>${x.adjusted ?? "-"}</td><td>${x.base_close ?? "-"}</td><td>${x.note ? '<span class="tag md">'+x.note+'</span>' : ""}</td></tr>`).join("");
+  draw(PT.pool);
+  document.getElementById("top200Search").oninput = e => {
+    const q = (e.target.value||"").trim().toLowerCase();
+    draw(q ? PT.pool.filter(x => x.symbol.includes(q) || (x.name||"").toLowerCase().includes(q) || (x.industry||"").toLowerCase().includes(q)) : PT.pool);
+  };
+}
+
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function renderTargets() {
+  const sub = document.getElementById("targetsSub"), note = document.getElementById("targetsNote");
+  if (!PTG || !PTG.data || !PTG.data.length) { sub.textContent = "暂无目标池数据"; return; }
+  const weeks = PTG.data, latest = weeks[weeks.length - 1], v = PTG.veto || {};
+
+  sub.textContent = `决策周 ${latest.week}（模式 ${latest.market_mode || "-"}）· 目标池 ${latest.targets.length} 只` +
+    ` · phase3 技术池 ${latest.pool_size ?? "-"} 只 / phase2 候选 ${latest.phase2_size ?? "-"} 只`;
+
+  // 口径说明：目标池与 Top200 不是同一套排序；否决覆盖范围也要讲清，避免把「未覆盖」读成「未触发」
+  const notImpl = (v.placeholder || []), blocked = (v.blocked_by_missing_data || []);
+  const sched = Object.entries(v.scheduled || {});
+  note.innerHTML =
+    `目标池 = phase3 技术池（已过否决）内按 <b>total_score</b> 降序取前 15。<b>与「每周Top200候选池」不是同一套排序</b>：` +
+    `Top200 是 phase2 前 200 按基本面 adjusted_score 排序（否决前），目标池是否决后按 total_score 取前 15。<br>` +
+    `回看周内实际在判定的否决规则只覆盖财务类（${(v.evaluable || []).join(" / ") || "-"}）；` +
+    (sched.length ? `公告类已按生效日启用、但回看周都早于生效日故不参与判定：${sched.map(([k, d]) => `${k}(${d})`).join(" / ")}；` : "") +
+    (notImpl.length ? `未实现（无外部数据源，配置占位）：${notImpl.join(" / ")} —— 属「系统未覆盖该维度」，不等于「未触发」；` : "") +
+    (blocked.length ? `已实现但缓存同比字段全空、本次未真正判定：${blocked.join(" / ")}；` : "") +
+    `共回看 ${weeks.length} 个决策周（${weeks[0].week} → ${latest.week}）。`;
+
+  // 新口径预览：说明「已启用但本页为何不变」以及「若已生效会拦谁」，避免要么以为没生效、要么以为历史被改写
+  const pv = PTG.veto_preview || {};
+  if (pv.available) {
+    const tb = pv.targets_blocked || [];
+    const firedTxt = Object.entries(pv.phase2_fired || {}).map(([k, v]) => `${k} ${v}`).join(" / ");
+    note.innerHTML += `<br><b>新口径预览</b>（${(pv.rules || []).join(" / ")} 自 ${pv.effective_from} 启用、按生效日门控）：` +
+      `本页决策周 ${pv.week} 早于生效日，故目标池仍是旧口径、逐位未变；` +
+      `把决策日假设为 ${pv.as_of_assumed} 重跑同一份候选表 → phase2 前 ${pv.phase2_total} 只中拦掉 <b>${pv.phase2_blocked}</b> 只` +
+      (firedTxt ? `（${firedTxt}）` : "") +
+      (tb.length
+        ? `；本周目标池会被拦掉 <b>${tb.length}</b> 只：${tb.map(x => `${x.symbol} ${esc(x.name) || "-"}`).join("、")}。`
+        : `；本周目标池无一只被拦。`) +
+      ` 真实生效从生效日之后的第一个决策周缓存开始。`;
+  }
+
+  // 口径变更点：试点期归因用。跨这些日期的对比必须标注口径，否则数字不可比
+  const cc = PTG.caliber_changes || [];
+  if (cc.length) {
+    note.innerHTML += `<br><b>⚠ 口径变更点</b>：` +
+      cc.map(x => `${x.date}【${x.scope}】${esc(x.what)}<span class="mini">（${esc(x.affects)}）</span>`).join("；") +
+      `。跨这些日期比较收益/胜率必须标注口径。`;
+  }
+
+  document.getElementById("targetsBody").innerHTML = latest.targets.map(t => `<tr>
+    <td><span class="an-toggle" data-sym="${t.symbol}" title="展开个股分析图">▶</span></td>
+    <td>${t.repr}</td><td>${t.symbol}</td><td>${esc(t.name) || "-"}</td><td>${t.industry || "-"}</td>
+    <td>${t.total_score ?? "-"}</td>
+    <td>${t.adjusted_score == null ? "-" : Number(t.adjusted_score).toFixed(4)}</td>
+    <td>${f2(t.pb)}</td>
+    <td>${pct(t.price_percentile == null ? null : t.price_percentile * 100, 1)}</td>
+    <td>${pct(t.roe == null ? null : t.roe * 100, 1)}</td>
+    <td>${t.rank_in_pool ?? "-"}</td></tr>`).join("");
+
+  const annCell = x => {
+    const list = x.announcements || [];
+    if (!list.length) return "-";
+    const head = list.slice(0, 3).map(a =>
+      `${a.date} ${esc(a.title)}<span class="mini">${esc(a.type)}</span>`).join("<br>");
+    return head + (list.length > 3 ? `<br><span class="mini">共 ${list.length} 条</span>` : "");
+  };
+  const rowsOf = (arr, sign, klass) => arr.map(x => `<tr>
+    <td class="${klass}">${sign}</td><td>${x.symbol}</td><td>${esc(x.name) || "-"}</td><td>${x.industry || "-"}</td>
+    <td style="white-space:normal;min-width:430px">${x.reason}${x.reason_confident === false ? ' <span class="tag crash">原因不确定</span>' : ""}</td>
+    <td class="dimm" style="white-space:normal;min-width:300px">${annCell(x)}</td></tr>`).join("");
+
+  document.getElementById("targetsChange").innerHTML = weeks.slice().reverse().map(w => {
+    const n = (w.added || []).length + (w.removed || []).length;
+    if (!n) return `<details><summary>${w.week} · 无变动<span class="mini">${w.note || ""}</span></summary></details>`;
+    return `<details${w.week === latest.week ? " open" : ""}><summary>${w.week} · 新进 ${w.added.length} / 掉出 ${w.removed.length}` +
+      `<span class="mini">对比 ${w.compare_from || "-"}</span></summary>
+      <table><thead><tr><th></th><th>代码</th><th>名称</th><th>行业</th><th>原因（只取缓存数据推导）</th><th>公告旁证</th></tr></thead>
+      <tbody>${rowsOf(w.added, "+", "pos")}${rowsOf(w.removed, "−", "neg")}</tbody></table></details>`;
+  }).join("");
+}
+
+function renderObserve() {
+  // 2026-11-16：观察日志接入每日链（scripts/_ds_gen_observation.py → data/observation.json）。
+  // 数据多了一层结构化字段（date / anomaly_count / anomalies），这里加日期标题与异常徽标，
+  // 并把最新一篇放最前；正文仍用 esc() 转义后按 pre-wrap 原样显示，避免日志里的
+  // JSON（如指数补拉结果）被当成 HTML 解析。
+  const box = document.getElementById("observeLog");
+  if (!Array.isArray(OBS) || !OBS.length) { box.innerHTML = "<div class='log'>暂无观察日志</div>"; return; }
+  box.innerHTML = OBS.slice().reverse().map(o => {
+    const an = Array.isArray(o.anomalies) ? o.anomalies : [];
+    const badge = an.length
+      ? `<span class="tag sell">异常 ${an.length} 项</span>`
+      : `<span class="tag buy">无异常</span>`;
+    const body = String(o.text || "").replace(/^#\s*观察日志[^\n]*\n/, "").trim();
+    return `<div style="margin-bottom:10px">`
+      + `<div style="margin-bottom:6px"><b style="color:var(--acc);font-size:13px">${esc(o.date || o.file || "")}</b> ${badge}`
+      + `<span class="mini">${esc(o.file || "")}</span></div>`
+      + `<div class="log">${esc(body)}</div></div>`;
+  }).join("<hr>");
+}
+
+// 总策略：一页可审计的策略说明书（筛选 / 买入 / 卖出 / 仓位管理，每条规则带出处）
+// 数据源 config/strategy_manual.yaml → scripts/_ds_gen_strategy.py → data/strategy_manual.json
+function renderStrategy() {
+  const fzBox = document.getElementById("strategyFreeze"), body = document.getElementById("strategyBody");
+  if (!SM || !SM.sections) {
+    fzBox.innerHTML = `<div class="dimm">总策略数据未生成（运行 scripts/_ds_gen_strategy.py 生成 data/strategy_manual.json）</div>`;
+    body.innerHTML = "";
+    return;
+  }
+  const fz = SM.freeze || {}, exp = fz.experiment || {}, meta = SM.meta || {};
+  const on = exp.enabled || [], off = exp.disabled || [], items = fz.items || [], caveats = fz.caveats || [];
+
+  // ── 顶部：冻结口径摘要 ──
+  const swTag = (name, isOn) => `<span class="tag ${isOn ? "buy" : "sell"}">${esc(name)}</span>`;
+  fzBox.innerHTML =
+    `<div class="sub">冻结口径摘要 · <b style="color:var(--acc)">${esc(fz.config_name || meta.baseline || "-")}</b>`
+    + `<span class="mini">生成 ${esc(SM.generated_at || "-")} · 源 ${esc(SM.source_file || "config/strategy_manual.yaml")}</span></div>`
+    + `<div class="dimm" style="margin-bottom:8px">${esc(fz.config_note || "")}</div>`
+    + `<div class="scroll" style="max-height:none"><table><thead><tr>`
+    + `<th style="width:230px">配置项</th><th style="width:300px">当前值</th><th>出处</th>`
+    + `</tr></thead><tbody>`
+    + items.map(i => `<tr><td>${esc(i.name)}</td>`
+        + `<td style="white-space:normal;color:var(--acc)">${esc(i.value)}</td>`
+        + `<td class="dimm" style="white-space:normal">${esc(i.source)}</td></tr>`).join("")
+    + `</tbody></table></div>`
+    + `<div style="margin-top:10px">`
+    + `<span class="tag ${exp.master_enabled ? "buy" : "sell"}">实验总开关 ${exp.master_enabled ? "ON" : "OFF"}</span>`
+    + `<span class="mini">共 ${exp.total || 0} 个 key · 默认开 ${on.length} 个 / 关 ${off.length} 个</span>`
+    + `<div style="margin-top:6px">${on.map(x => swTag(x, true)).join("")}</div>`
+    + `<div style="margin-top:4px">${off.map(x => swTag(x, false)).join("")}</div>`
+    + `<div class="dimm" style="margin-top:6px">${esc(exp.note || "")}<span class="mini">${esc(exp.source || "")}</span></div>`
+    + `</div>`
+    + (caveats.length ? `<div style="margin-top:8px">${caveats.map(c => `<div class="dimm">⚠️ ${esc(c)}</div>`).join("")}</div>` : "");
+
+  // ── 四段：可折叠区块，默认只展开第一个 ──
+  const htag = st => st === "已落地" ? `<span class="tag buy">✅ 已落地</span>`
+    : st === "已否决" ? `<span class="tag sell">❌ 已否决</span>`
+    : `<span class="tag crash">🕓 ${esc(st || "讨论中")}</span>`;
+
+  body.innerHTML = SM.sections.map((s, idx) => {
+    const steps = s.steps || [], params = s.params || [], hist = s.history || [];
+    const landed = hist.filter(x => x.status === "已落地").length;
+    const rejected = hist.filter(x => x.status === "已否决").length;
+    const pending = hist.length - landed - rejected;
+
+    const stepsHtml = steps.length
+      ? `<div class="scroll"><table><thead><tr><th style="width:170px">步骤</th><th>说明</th><th style="width:230px">出处</th></tr></thead><tbody>`
+        + steps.map(x => `<tr><td>${esc(x.name)}</td><td style="white-space:normal">${esc(x.detail)}</td>`
+            + `<td class="dimm" style="white-space:normal">${esc(x.source)}</td></tr>`).join("")
+        + `</tbody></table></div>`
+      : `<div class="dimm">待补充（代码中未定位到明确实现）</div>`;
+
+    const paramsHtml = params.length
+      ? `<div class="scroll"><table><thead><tr><th style="width:270px">参数</th><th style="width:250px">当前值</th><th>配置键</th></tr></thead><tbody>`
+        + params.map(x => `<tr><td>${esc(x.name)}</td><td style="white-space:normal;color:var(--acc)">${esc(x.value)}</td>`
+            + `<td class="dimm" style="white-space:normal">${esc(x.source)}</td></tr>`).join("")
+        + `</tbody></table></div>`
+      : `<div class="dimm">暂无参数数据</div>`;
+
+    const histHtml = hist.length
+      ? `<div class="scroll"><table><thead><tr><th style="width:110px">状态</th><th style="width:230px">修正条目</th><th>结论</th><th style="width:230px">出处</th></tr></thead><tbody>`
+        + hist.map(x => `<tr><td>${htag(x.status)}</td><td style="white-space:normal">${esc(x.item)}</td>`
+            + `<td style="white-space:normal">${esc(x.conclusion)}</td>`
+            + `<td class="dimm" style="white-space:normal">${esc(x.source)}</td></tr>`).join("")
+        + `</tbody></table></div>`
+      : `<div class="dimm">暂无历史修正记录</div>`;
+
+    return `<details${idx === 0 ? " open" : ""}><summary><b>${esc(s.label)}</b>`
+      + `<span class="mini">步骤 ${steps.length} · 参数 ${params.length} · 历史 ${hist.length}`
+      + `（✅${landed} / ❌${rejected}${pending ? ` / 🕓${pending}` : ""}）</span></summary>`
+      + `<div style="margin-top:10px">`
+      + `<div class="box" style="margin-bottom:10px"><span class="dimm">时机 · </span>${esc(s.timing)}</div>`
+      + `<div class="sub" style="margin-bottom:4px">判定步骤（按执行顺序）</div>${stepsHtml}`
+      + `<div class="sub" style="margin:12px 0 4px">关键参数（config 当前实际值）</div>${paramsHtml}`
+      + `<div class="sub" style="margin:12px 0 4px">历史修正（✅已落地 / ❌已否决 / 🕓讨论中）</div>${histHtml}`
+      + `<div class="box" style="margin-top:10px"><span class="dimm">一句话 · </span>${esc(s.notes)}</div>`
+      + `</div></details>`;
+  }).join("");
+}
+load();
+
+// ---- 强弱指数（纯新增）：周蜡烛 + K 线；周频指数用折线+点 ----
+let _msiChart = null, _hsiChart = null, _poolChart = null;
+function _candleDatasets(key, ohlc) {
+  const rows = ohlc.filter(r => r[key]);
+  const RED = "rgba(255,107,107,", GREEN = "rgba(61,220,132,";
+  const body = rows.map(r => {
+    const o = r[key].o, c = r[key].c;
+    return [Math.min(o, c), Math.max(o, c)];
+  });
+  // 上下影线不再单独画成灰线：直接取高/低全幅、与实体**完全同色**（红涨/绿跌），
+  // 只靠宽度区分（实体粗、影线细），合起来就是一根标准 K 线。
+  const bodyColor = rows.map(r => (r[key].c >= r[key].o ? RED + ".95)" : GREEN + ".95)"));
+  const wickColor = bodyColor;
+  const wick = rows.map(r => [r[key].l, r[key].h]);
+  const close = rows.map(r => r[key].c);
+  return { rows, body, bodyColor, wick, wickColor, close };
+}
+function _drawCandle(canvasId, key, title, exists, yRange) {
+  const el = document.getElementById(canvasId);
+  if (!el || typeof Chart === "undefined") return null;
+  const { rows, body, bodyColor, wick, wickColor, close } = _candleDatasets(key, exists);
+  // x 轴标签用该周最后一个交易日：未走完的当周若标周一，看起来像「指数只算到周一」
+  const labels = rows.map(r => (r.last || r.week).slice(5));
+  const weekLabel = r => (r.first && r.last ? `周 ${r.first.slice(5)} ~ ${r.last.slice(5)}` : `周 ${String(r.week).slice(5)}`);
+  const cfg = {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        { type: "line", label: `${title} 收盘`, data: close, borderColor: "#4da3ff",
+          backgroundColor: "transparent", borderWidth: 1.8, pointRadius: 0, tension: .15, order: 1 },
+        // grouped:false 是关键：Chart.js 默认把同一分类下的多个 bar 数据集左右并排，
+        // 不写这一项影线会被排到实体旁边，而不是叠在实体正中（2026-11-04 截图实测 22px 错位）。
+        { type: "bar", label: "实体", data: body, backgroundColor: bodyColor,
+          grouped: false, barPercentage: .62, categoryPercentage: .9, order: 2 },
+        { type: "bar", label: "影线", data: wick, backgroundColor: wickColor,
+          grouped: false, barPercentage: .11, categoryPercentage: .9, order: 3 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { display: false },
+        title: { display: true, text: title, color: "#dbe4ee", font: { size: 13, weight: "600" } },
+        tooltip: {
+          callbacks: {
+            title: items => (items.length && rows[items[0].dataIndex] ? weekLabel(rows[items[0].dataIndex]) : ""),
+            // 影线并进实体一起报，不再单独占一行
+            filter: c => c.dataset.label !== "影线",
+            label: c => {
+              if (c.dataset.label === "实体") {
+                const r = rows[c.dataIndex];
+                if (r[key + "_fill"]) return "无持仓（贴图底绘制，非真实取值）";
+                const v = r[key];
+                return `开 ${v.o} / 高 ${v.h} / 低 ${v.l} / 收 ${v.c}`;
+              }
+              return `${c.dataset.label}: ${c.formattedValue}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: "#8b98a5", maxTicksLimit: 14, font: { size: 10 } }, grid: { color: "#2a3340" } },
+        y: { beginAtZero: false,
+             ...(yRange ? { min: yRange.yMin, max: yRange.yMax } : {}),
+             ticks: { color: "#8b98a5", font: { size: 10 } }, grid: { color: "#2a3340" } }
+      }
+    }
+  };
+  if (window[`_${canvasId}`]) { window[`_${canvasId}`].destroy(); }
+  window[`_${canvasId}`] = new Chart(el.getContext("2d"), cfg);
+  return window[`_${canvasId}`];
+}
+function renderStrength() {
+  if (!PSTR) return;
+  const snap = PSTR.snapshot || {};
+  const START = "2026-01-01";
+  const ohlc = (PSTR.weekly_ohlc || []).filter(r => r.week >= START);
+  const ws = (PSTR.weekly || []).filter(r => (r.week || "") >= START);
+
+  const card = (label, value, tip) =>
+    `<div class="card"><div class="mini">${label}</div><div style="font-size:20px;font-weight:600">${value == null ? "—" : Number(value).toFixed(4)}</div><div class="mini">${tip || ""}</div></div>`;
+  const cards = document.getElementById("strengthCards");
+  if (cards) {
+    cards.innerHTML = [
+      card("MSI 大盘强弱", snap.MSI, "沪深合成 · 绝对/相对位置 · 逐日"),
+      card("HSI 持有股票评价", snap.HSI, `持仓 ${snap.holdings ?? "—"} 只 · 市值加权 · 逐日`),
+      card("TSI 目标池强弱", snap.TSI, "等权 · 每周"),
+      card("Top200SI", snap.Top200SI, "等权 · 每周"),
+    ].join("") + `<div class="mini" style="margin-top:6px">数据截至 ${snap.as_of || "—"} · 最新决策周 ${snap.week || "—"} · 周蜡烛 ${ohlc.length} 根</div>`;
+  }
+
+  // 三张图共用同一套周刻度（ohlc 的每一周），保证上下能竖着对齐看日期。
+  _drawCandle("msiChart", "MSI", "MSI 大盘强弱（周蜡烛 + 收盘折线）", ohlc);
+
+  // R2（用户 2026-11-05 选定方案 3）：无持仓的周画在图底——不塞真 0，
+  // 否则纵轴会被从 0 拉到 1.05，真实部分只剩约 9% 画高、被压成贴顶的一条。
+  // 做法：按真实 HSI 的极值定一个固定纵轴范围，把「无持仓」摆在靠近底边的一个锚点。
+  const hsiReal = ohlc.filter(r => r.HSI);
+  let hsiRange = null, hsiWeeks = ohlc;
+  if (hsiReal.length) {
+    const lo = Math.min(...hsiReal.map(r => r.HSI.l));
+    const hi = Math.max(...hsiReal.map(r => r.HSI.h));
+    const span = (hi - lo) > 1e-9 ? (hi - lo) : 0.01;
+    const yMin = lo - span * 0.15, yMax = hi + span * 0.15;
+    const anchor = yMin + (yMax - yMin) * 0.04;
+    hsiRange = { yMin, yMax };
+    hsiWeeks = ohlc.map(r => (r.HSI ? r : Object.assign({}, r, {
+      HSI: { o: anchor, h: anchor, l: anchor, c: anchor }, HSI_fill: true,
+    })));
+  }
+  _drawCandle("hsiChart", "HSI", "HSI 持有股票评价（周蜡烛 + 收盘折线；无持仓贴图底）", hsiWeeks, hsiRange);
+
+  // 2026-11-10 用户要求：TSI / Top200SI 也做成「周蜡烛 + 收盘折线」，与 MSI/HSI 同款、
+  // 共用同一套周刻度，便于竖着对齐看日期。口径差异（当周生效池 vs 本周决策池）见页面说明。
+  _drawCandle("tsiChart", "TSI", "TSI 目标池强弱（周蜡烛 + 收盘折线）", ohlc);
+  _drawCandle("top200Chart", "Top200SI", "Top200SI 池强弱（周蜡烛 + 收盘折线）", ohlc);
+
+  const poolEl = document.getElementById("poolChart");
+  if (poolEl && ohlc.length && typeof Chart !== "undefined") {
+    const weekKeys = ohlc.map(r => r.week);
+    const labels = ohlc.map(r => (r.last || r.week).slice(5));
+    const byWk = {};
+    ws.forEach(r => { byWk[r.week_monday || r.week] = r; });
+    const pick = f => weekKeys.map(k => {
+      const r = byWk[k];
+      return (r && r[f] != null) ? Number(r[f]) : null;
+    });
+    const isZeroHsi = ohlc.map(r => r.HSI_zero === "no_holdings");
+    const cfg = {
+      type: "line",
+      data: { labels, datasets: [
+        { label: "TSI 目标池", data: pick("TSI"), borderColor: "#4da3ff", backgroundColor: "rgba(77,163,255,.15)",
+          borderWidth: 1.8, pointRadius: 2, tension: .15, spanGaps: false },
+        { label: "Top200SI", data: pick("Top200SI"), borderColor: "#ffb454", backgroundColor: "rgba(255,180,84,.12)",
+          borderWidth: 1.8, pointRadius: 2, tension: .15, spanGaps: false }
+      ] },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: { legend: { labels: { color: "#dbe4ee", boxWidth: 12, font: { size: 11 } } },
+          title: { display: true, text: "TSI / Top200SI（周频 · 折线 + 数据点）", color: "#dbe4ee", font: { size: 13, weight: "600" } },
+          tooltip: { callbacks: { title: items => {
+            const i = items.length ? items[0].dataIndex : -1;
+            if (i < 0 || !ohlc[i]) return "";
+            const r = ohlc[i];
+            const w = (r.first && r.last) ? `周 ${r.first.slice(5)} ~ ${r.last.slice(5)}` : `周 ${String(r.week).slice(5)}`;
+            const notes = [];
+            if (isZeroHsi[i]) notes.push("本周无持仓，HSI 贴图底绘制");
+            // 2026-09-24 / 09-30 两周缺周决策缓存 → 没有目标池 → TSI/Top200SI 无法计算（不是显示问题）
+            const wr = byWk[weekKeys[i]];
+            if (!wr || wr.TSI == null) notes.push("本周无周决策缓存，TSI/Top200SI 缺失");
+            else if (wr.pool_source === "gapfill") notes.push("池子为补算（只算指数，未进回测）");
+            return notes.length ? `${w}（${notes.join("；")}）` : w;
+          } } } },
+        scales: {
+          x: { ticks: { color: "#8b98a5", maxTicksLimit: 14, font: { size: 10 } }, grid: { color: "#2a3340" } },
+          y: { beginAtZero: false, ticks: { color: "#8b98a5", font: { size: 10 } }, grid: { color: "#2a3340" } }
+        }
+      }
+    };
+    if (window._poolChart) window._poolChart.destroy();
+    window._poolChart = new Chart(poolEl.getContext("2d"), cfg);
+  }
+
+  const stateOf = (hsi, msi) => {
+    if (hsi == null || msi == null) return "—";
+    const d = hsi - msi;
+    if (d >= 0.02) return "持仓强于大盘";
+    if (d <= -0.02) return "持仓弱于大盘";
+    return "同步";
+  };
+  const db = document.getElementById("strengthDailyBody");
+  if (db) {
+    const rows = (PSTR.daily || []).filter(r => r.date >= START).slice(-30).reverse();
+    db.innerHTML = rows.map(r => {
+      const hsi = r.HSI == null ? null : Number(r.HSI);
+      const msi = r.MSI == null ? null : Number(r.MSI);
+      const d = (hsi == null || msi == null) ? null : (hsi - msi);
+      return `<tr><td>${r.date}</td><td>${msi == null ? "—" : msi.toFixed(4)}</td>` +
+        `<td>${hsi == null ? "—" : hsi.toFixed(4)}</td>` +
+        `<td class="${d == null ? "" : (d >= 0 ? "pos" : "neg")}">${d == null ? "—" : (d >= 0 ? "+" : "") + d.toFixed(4)}</td>` +
+        `<td class="dimm">${stateOf(hsi, msi)}</td></tr>`;
+    }).join("");
+  }
+  const wb = document.getElementById("strengthWeeklyBody");
+  if (wb) {
+    // weekly 的行是「决策周标签（多为周五）」，weekly_ohlc 的行是「该自然周的周一」，
+    // 两边必须先用 week_monday 对齐，否则 OHLC 和 TSI/Top200SI 永远落在两行。
+    const byWeek = {};
+    ws.forEach(r => {
+      const k = r.week_monday || r.week;
+      byWeek[k] = Object.assign(byWeek[k] || {}, r);
+    });
+    ohlc.forEach(r => { byWeek[r.week] = Object.assign(byWeek[r.week] || {}, r); });
+    const keys = Object.keys(byWeek).sort().reverse();
+    const fmt = o => (o ? `${o.o} / ${o.h} / ${o.l} / ${o.c}` : "—");
+    wb.innerHTML = keys.map(k => {
+      const r = byWeek[k];
+      const tag = (r.week && r.week !== k) ? `<span class="dimm"> · 决策周 ${r.week.slice(5)}</span>` : "";
+      const gap = (r.pool_source === "gapfill") ? `<span class="tag crash">补算</span>` : "";
+      return `<tr><td>${k}${tag}${gap}</td><td>${fmt(r.MSI)}</td><td>${fmt(r.HSI)}</td>` +
+        `<td>${r.TSI == null ? "—" : Number(r.TSI).toFixed(4)}</td>` +
+        `<td>${r.Top200SI == null ? "—" : Number(r.Top200SI).toFixed(4)}</td></tr>`;
+    }).join("");
+  }
+}
+
+
+// 强弱指数页签：独立挂载，不触碰现有 tab 分发逻辑
+document.addEventListener('click', function (e) {
+  var t = e.target && e.target.closest ? e.target.closest('[data-p="strength"]') : null;
+  if (t) setTimeout(function () { try { renderStrength(); } catch (err) {} }, 30);
+});
+var renderStrengthPending = setInterval(function () {
+  try { if (PSTR) { renderStrength(); clearInterval(renderStrengthPending); } } catch (err) {}
+}, 500);
+
+// 数据加载失败提示（纯新增）
+(function () {
+  var tries = 0;
+  var timer = setInterval(function () {
+    tries++;
+    var failed = window.__loadFailed || [];
+    if (!failed.length) { if (tries > 40) clearInterval(timer); return; }
+    if (document.getElementById("loadFailBanner")) { clearInterval(timer); return; }
+    var d = document.createElement("div");
+    d.id = "loadFailBanner";
+    d.style.cssText = "margin:10px 0;padding:10px 14px;border:1px solid #ff6b6b;border-radius:8px;background:#2a1a1a;color:#ffb3b3;font-size:13px;line-height:1.6";
+    d.innerHTML = "<b>以下数据文件加载失败（页面其余部分仍可用）：</b><br>" +
+      failed.map(function (x) { return "· " + x; }).join("<br>") +
+      "<br><span style='color:#8b98a5'>常见原因：文件未部署到 GitHub Pages、CDN 缓存了旧的 404、或文件内容不是合法 JSON。</span>";
+    var host = document.querySelector(".box") || document.body;
+    host.insertBefore(d, host.firstChild);
+    clearInterval(timer);
+  }, 250);
+})();
+
+</script>
+<div class="panel" id="p-strength">
+  <div class="box">
+    <div class="sub"><b>我们自己的强弱指数</b>（按梦大 2026-11-04 口述的构造自建；<b style="color:var(--warn)">纯新增观察指标，不参与任何现有决策/阈值/策略</b>）。<br>
+      <b>MSI 大盘强弱</b>（沪深合成 + 绝对位置/相对位置）与 <b>HSI 持有股票评价</b>（持仓市值加权）是<b>每日</b>更新，
+      因此按周聚合成蜡烛图（开=周内首日、收=周内末日、高/低=周内极值；<b>上/下影线与实体同色，红涨绿跌</b>），叠加收盘折线；
+      <b>TSI 目标池强弱</b> 与 <b>Top200SI</b> 自 2026-11-10 起同样做成<b>周蜡烛 + 收盘折线</b>（原来只有折线+数据点），
+      并随每日同步进程更新。<br>
+      时间范围与「六指数温度」一致：2026-01-01 起至今。五张图<b>共用同一套周刻度</b>，可以竖着对齐看日期；
+      <b>HSI 在还没有持仓的周贴图底绘制</b>（蓝色收盘线沿底边走、不占纵轴高度，纵轴按真实 HSI 范围固定，这样真实的起伏不会被压扁），表格里这些周仍显示「—」。红涨绿跌。</div>
+    <div class="cards" id="strengthCards"></div>
+    <div class="chartbox" style="height:230px;margin-top:10px"><canvas id="msiChart"></canvas></div>
+    <div class="chartbox" style="height:230px;margin-top:10px"><canvas id="hsiChart"></canvas></div>
+    <div class="chartbox" style="height:230px;margin-top:10px"><canvas id="tsiChart"></canvas></div>
+    <div class="chartbox" style="height:230px;margin-top:10px"><canvas id="top200Chart"></canvas></div>
+    <div class="chartbox" style="height:230px;margin-top:10px"><canvas id="poolChart"></canvas></div>
+    <div class="mini" style="margin-top:6px">
+      TSI / Top200SI 蜡烛口径：每个交易日的取值 = 当日 SSI 在该日<b>生效的目标池</b>上的等权均值。
+      「当周生效池」= 该自然周<b>之前</b>最近一个决策周的池（上周五决策出的那份）——本周自己的池要到本周五收盘才产生，
+      若拿它回填本周一到周四就是后视。因此<b>蜡烛收盘值 ≠ 上方卡片/周表里的 TSI</b>（那张表用<b>本周</b>决策池、决策日当天的取值）。
+      两者都 PIT 安全，只是参照池不同。
+    </div>
+    <div class="sub" style="margin-top:10px">最近 30 个交易日（MSI / HSI）</div>
+    <div class="scroll"><table><thead><tr><th>日期</th><th>MSI 大盘</th><th>HSI 持仓</th><th>差值(HSI−MSI)</th><th>状态</th></tr></thead><tbody id="strengthDailyBody"></tbody></table></div>
+    <div class="sub" style="margin-top:10px">按周（OHLC 与四个指数）</div>
+    <div class="scroll"><table><thead><tr><th>周(周一)</th><th>MSI 开/高/低/收</th><th>HSI 开/高/低/收</th><th>TSI</th><th>Top200SI</th></tr></thead><tbody id="strengthWeeklyBody"></tbody></table></div>
+  </div>
+</div>
+
+<style>
+  /* ---- #38b 个股分析图（梦大 2026-4-3/10/17 的「个股分析图」+ 2026-3-20「三类图」）---- */
+  .an-toggle { cursor:pointer; color:#8a8f98; user-select:none; display:inline-block; width:12px;
+               transition:transform .12s, color .12s; font-size:10px; }
+  .an-toggle:hover { color:#4da3ff; }
+  .an-toggle.open { color:#4da3ff; transform:rotate(90deg); }
+  .an-wrap { padding:8px 6px 12px; }
+  .an-meta { font-size:11px; color:#8a8f98; margin-bottom:8px; line-height:1.7; }
+  .an-meta b { color:#c9ced6; }
+  .an-grid { display:flex; gap:14px; flex-wrap:wrap; }
+  .an-cell { flex:1 1 340px; min-width:300px; }
+  .an-cap { font-size:11px; color:#8a8f98; margin:0 0 4px 2px; }
+  .an-box { height:190px; }
+  .an-legend { font-size:10px; color:#6d737c; margin-top:4px; }
+  .an-badge { display:inline-block; padding:1px 6px; border-radius:3px; font-size:10px; margin-left:6px; }
+</style>
+<script>
+/* ===================================================================
+   #38b 个股分析图
+   -------------------------------------------------------------------
+   来源：梦大 2026-4-3 / 4-10 / 4-17《个股分析图，建议学习》+ 2026-3-20《三类图学习》
+     · 每只股票两张图：上「考虑大盘因素」、下「不考虑大盘因素」
+     · 从左往右，一个点 = 一个交易日；100% 以下为明确低估；横轴约 2~3 年
+     · 两张图共用 y 轴
+   数据：scripts/_ds_gen_stock_analysis.py → dashboard/data/pilot_analysis.json
+   =================================================================== */
+(function () {
+  const charts = {};
+  // 注意：PAA 由主脚本 await 后才赋值，这段 IIFE 在它之前执行，
+  // 所以**不能**在这里检查 PAA（否则事件监听器永远注册不上）。改为点击时判定。
+
+  const yAxis = () => ({
+    min: PAA.y_min, max: PAA.y_max, position: "right",
+    grid: { color: "rgba(140,150,160,.12)" },
+    ticks: { font: { size: 9 }, callback: v => v + "%" },
+  });
+
+  function cfg(dates, vals, color, label) {
+    const n = dates.length;
+    return {
+      type: "line",
+      data: {
+        labels: dates,
+        datasets: [
+          { label: label, data: vals, borderColor: color, backgroundColor: color + "22",
+            borderWidth: 1.5, pointRadius: 0, tension: 0.15, fill: false },
+          { label: "100% 中枢", data: new Array(n).fill(100), borderColor: "#9aa0a6",
+            borderWidth: 1, borderDash: [5, 4], pointRadius: 0, fill: false },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { display: true, labels: { boxWidth: 9, font: { size: 9 }, filter: it => true } },
+          tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y == null ? "-" : c.parsed.y.toFixed(1) + "%"}` } },
+        },
+        scales: {
+          x: { ticks: { maxTicksLimit: 7, font: { size: 9 }, maxRotation: 0 }, grid: { display: false } },
+          y: yAxis(),
+        },
+        elements: { point: { radius: 0 } },
+      },
+    };
+  }
+
+  function metaLine(sym, d) {
+    const zoneColor = d.zone === "低估" ? "#1f7a4d" : (d.zone === "高估" ? "#b3261e" : "#b07a00");
+    const wk = d.weeks_since_peak == null ? "-" : d.weeks_since_peak.toFixed(0) + " 周";
+    const pos = d.pos_in_swing == null ? "-" : (d.pos_in_swing * 100).toFixed(0) + "%";
+    const pct = d.price_pct == null ? "-" : (d.price_pct * 100).toFixed(0) + "%";
+    const now = d.last_no_mkt == null ? "-" : d.last_no_mkt.toFixed(1) + "%";
+    const nowM = d.last_with_mkt == null ? "-" : d.last_with_mkt.toFixed(1) + "%";
+    // 用 #51a 实测的分档给出提示（距高点 ≤10 周后续 13 周 −4.60%、>60 周 +6.81%）
+    let cyc = "—";
+    if (d.weeks_since_peak != null) {
+      const w = d.weeks_since_peak;
+      cyc = w <= 10 ? "刚见顶不久（历史上这一档后续 13 周 <b>−4.6%</b>）"
+        : w <= 20 ? "调整中（−0.7%）"
+        : w <= 30 ? "接近周期长度下沿（+2.9%）"
+        : w <= 40 ? "已到典型周期长度 34~37 周（+3.6%）"
+        : w <= 60 ? "底部区域（+4.8%）"
+        : "深度底部（<b>+6.8%</b>，但样本均值靠右尾）";
+    }
+    return `当前 <b>${now}</b>（不考虑大盘） / <b>${nowM}</b>（考虑大盘）`
+      + `<span class="an-badge" style="background:${zoneColor}22;color:${zoneColor}">${d.zone}</span>`
+      + ` · 距上轮高点 <b>${wk}</b> · 波段位置 <b>${pos}</b> · 52 周价分位 <b>${pct}</b>`
+      + `<br><span style="font-size:10px">周期判读：${cyc}</span>`;
+  }
+
+  function build(sym) {
+    const d = PAA.stocks[sym];
+    const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const src = (d.source || []).join(" + ");
+    const html = `<div class="an-wrap">
+      <div class="an-meta"><b>${esc(d.name)}</b> (${sym}) · ${esc(d.industry || "-")} · 出现在：${esc(src)}
+        <br>${metaLine(sym, d)}</div>
+      <div class="an-grid">
+        <div class="an-cell"><div class="an-cap">考虑大盘因素（已剔除沪深300自身偏离）</div>
+          <div class="an-box"><canvas id="an_w_${sym}"></canvas></div></div>
+        <div class="an-cell"><div class="an-cap">不考虑大盘因素（个股 / 自身一年均线）</div>
+          <div class="an-box"><canvas id="an_n_${sym}"></canvas></div></div>
+      </div>
+      <div class="an-legend">从左往右 = 时间推进，一个点 = 一个交易日（近 ${d.dates.length} 个交易日）；虚线 100% = 自身一年中枢，以下为低估。两图共用 y 轴（${PAA.y_min}%~${PAA.y_max}%）。
+        距高点周数按 ZigZag(25%) 的最近一个高点计。</div>
+    </div>`;
+    return html;
+  }
+
+  function draw(sym) {
+    const d = PAA.stocks[sym];
+    const noEl = document.getElementById("an_n_" + sym);
+    const wEl = document.getElementById("an_w_" + sym);
+    if (noEl) charts["n_" + sym] = new Chart(noEl.getContext("2d"), cfg(d.dates, d.no_mkt, "#c9772e", "不考虑大盘"));
+    if (wEl && d.with_mkt && d.with_mkt.length)
+      charts["w_" + sym] = new Chart(wEl.getContext("2d"), cfg(d.dates, d.with_mkt, "#2a6fb0", "考虑大盘"));
+  }
+
+  function destroy(sym) {
+    ["n_", "w_"].forEach(k => { if (charts[k + sym]) { charts[k + sym].destroy(); delete charts[k + sym]; } });
+  }
+
+  window.toggleStockAnalysis = function (sym, el) {
+    const tr = el.closest("tr");
+    if (!tr) return;
+    if (typeof PAA === "undefined" || !PAA) {
+      tr.insertAdjacentHTML("afterend", `<tr class="an-row" data-for="${sym}"><td colspan="20">
+        <div class="an-wrap an-meta">分析图数据未加载（dashboard/data/pilot_analysis.json 缺失或加载失败）。<br>
+        生成命令：<code>.venv\\Scripts\\python.exe scripts\\_ds_gen_stock_analysis.py</code>，改完记得部署。</div></td></tr>`);
+      return;
+    }
+    const next = tr.nextElementSibling;
+    if (next && next.classList.contains("an-row") && next.dataset.for === sym) {
+      destroy(sym); next.remove(); el.classList.remove("open"); el.textContent = "▶"; return;
+    }
+    // 收起同表其它展开行，避免表格过长
+    let sib = tr.parentElement.firstElementChild;
+    while (sib) {
+      if (sib.classList.contains("an-row")) {
+        destroy(sib.dataset.for);
+        const oe = sib.previousElementSibling && sib.previousElementSibling.querySelector(".an-toggle");
+        if (oe) { oe.classList.remove("open"); oe.textContent = "▶"; }
+        const dead = sib; sib = sib.nextElementSibling; dead.remove(); continue;
+      }
+      sib = sib.nextElementSibling;
+    }
+    if (!PAA.stocks[sym]) {
+      tr.insertAdjacentHTML("afterend", `<tr class="an-row" data-for="${sym}"><td colspan="20">
+        <div class="an-wrap an-meta">该标的暂无分析图数据（未在持仓/目标池快照里，或历史不足 2 年）</div></td></tr>`);
+      el.classList.add("open"); el.textContent = "▶"; return;
+    }
+    tr.insertAdjacentHTML("afterend", `<tr class="an-row" data-for="${sym}"><td colspan="20">${build(sym)}</td></tr>`);
+    el.classList.add("open"); el.textContent = "▶";
+    draw(sym);
+  };
+
+  document.addEventListener("click", e => {
+    const t = e.target.closest(".an-toggle");
+    if (t) { e.preventDefault(); window.toggleStockAnalysis(t.dataset.sym, t); }
+  });
+})();
+</script>
+</body>
+</html>
